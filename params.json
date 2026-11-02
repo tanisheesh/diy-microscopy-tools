@@ -1,0 +1,36 @@
+{
+  "base": {
+    "L": 100.0,
+    "W": 40.0,
+    "plateTop": 4.0,
+    "railTop": 9.0
+  },
+  "slide": {
+    "L": 75.0,
+    "W": 25.0,
+    "T": 1.0,
+    "x0": 12.500000000000004,
+    "topZ": 4.2
+  },
+  "spreader": {
+    "L": 75.0,
+    "W": 25.0,
+    "T": 1.0,
+    "angleDeg": 30.0
+  },
+  "carriage": {
+    "printShift": [
+      39.1625551822949,
+      31.000000000000004,
+      20.0
+    ],
+    "printRotXDeg": 90,
+    "contactMin": 34.213843876330614,
+    "contactMax": 84.5
+  },
+  "tolerances": {
+    "slide": 0.3,
+    "rail": 0.25,
+    "minWall": 1.6
+  }
+}

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smear Spreader Viewer</title>
+<style>
+  :root { --bg:#eef1f4; --panel:#ffffffee; --fg:#1d2430; --muted:#5b6575; --accent:#2b6cb0; --line:#d5dbe3; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181e; --panel:#1f252dee; --fg:#e6ebf1; --muted:#9aa5b4; --accent:#63a4ff; --line:#333c48; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow:hidden; }
+  #view { position:fixed; inset:0; }
+  #panel { position:fixed; top:16px; left:16px; width:min(300px, calc(100vw - 32px)); max-height:calc(100vh - 32px);
+    overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px;
+    backdrop-filter: blur(6px); }
+  h1 { font-size:16px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:10px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+  label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; }
+  .sw { width:12px; height:12px; border-radius:3px; border:1px solid #0003; flex:none; }
+  input[type=range] { width:100%; }
+  .btns { display:flex; flex-wrap:wrap; gap:6px; }
+  button, a.btn { font:inherit; padding:6px 10px; border-radius:6px; border:1px solid var(--line);
+    background:transparent; color:var(--fg); cursor:pointer; text-decoration:none; }
+  button:hover, a.btn:hover { border-color:var(--accent); color:var(--accent); }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .val { color:var(--muted); font-variant-numeric: tabular-nums; }
+  #err { color:#d33; display:none; margin-top:8px; font-size:12px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="view"></div>
+<div id="panel">
+  <h1>Blood Smear Spreader</h1>
+  <div class="sub">Drag karke rotate karo, scroll karke zoom, right-drag karke pan.</div>
+
+  <h2>Parts</h2>
+  <div id="toggles"></div>
+
+  <h2>Smear motion</h2>
+  <input id="travel" type="range" min="0" max="1000" value="0">
+  <div class="val" id="travelVal"></div>
+  <div class="btns" style="margin-top:8px">
+    <button id="play">▶ Play</button>
+    <button id="explode">Exploded view</button>
+    <button id="reset">Reset view</button>
+  </div>
+
+  <h2>Download STL</h2>
+  <div class="btns">
+    <a class="btn" href="base.stl" download>base.stl</a>
+    <a class="btn" href="carriage.stl" download>carriage.stl</a>
+  </div>
+  <div class="sub" style="margin-top:8px">Glass slides sirf yahan dikhane ke liye hain, inhe print nahi karna.</div>
+  <div id="err"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+const errBox = document.getElementById('err');
+const fail = (m) => { errBox.style.display = 'block'; errBox.textContent = m; };
+
+let P;
+try { P = await (await fetch('params.json')).json(); }
+catch (e) { fail('params.json load nahi hua - page ko "python -m http.server" se kholo (file:// se nahi).'); throw e; }
+
+const host = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+const center = new THREE.Vector3(P.base.L / 2, 0, 10);
+function resetView() {
+  camera.position.set(P.base.L / 2 + 110, -150, 120);
+  controls.target.copy(center);
+  controls.update();
+}
+resetView();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(120, -80, 160);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120 });
+sun.target.position.copy(center);
+scene.add(sun, sun.target);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.position.set(P.base.L / 2, 0, -0.01);
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(300, 30, 0x8899aa, 0x8899aa);
+grid.rotation.x = Math.PI / 2;
+grid.position.set(P.base.L / 2, 0, 0);
+grid.material.transparent = true; grid.material.opacity = 0.15;
+scene.add(grid);
+
+const plastic = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05 });
+const glassMat = (c) => new THREE.MeshPhysicalMaterial({ color: c, transparent: true, opacity: 0.35,
+  roughness: 0.05, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
+
+// ---------- parts ----------
+const parts = {};
+const a = THREE.MathUtils.degToRad(P.spreader.angleDeg);
+
+const baseMesh = new THREE.Mesh(undefined, plastic(0x3d7fd9));
+const carriage = new THREE.Group();               // carriage-local frame: x=0 => glass contact
+const carriageMesh = new THREE.Mesh(undefined, plastic(0xf08a24));
+carriage.add(carriageMesh);
+
+const slide = new THREE.Mesh(new THREE.BoxGeometry(P.slide.L, P.slide.W, P.slide.T), glassMat(0xbfe6ff));
+slide.position.set(P.slide.x0 + P.slide.L / 2, 0, P.slide.topZ - P.slide.T / 2);
+
+const S = P.spreader;
+const spreader = new THREE.Mesh(new THREE.BoxGeometry(S.L, S.W, S.T), glassMat(0xa8f0d8));
+spreader.rotation.y = a;   // box +X -> glass ke along, +Z -> glass normal
+spreader.position.set(-Math.cos(a) * S.L / 2 + Math.sin(a) * S.T / 2, 0,
+                      P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2);
+spreader.add(new THREE.LineSegments(new THREE.EdgesGeometry(spreader.geometry),
+  new THREE.LineBasicMaterial({ color: 0x2f8f73, transparent: true, opacity: 0.6 })));
+slide.add(new THREE.LineSegments(new THREE.EdgesGeometry(slide.geometry),
+  new THREE.LineBasicMaterial({ color: 0x4a8fbf, transparent: true, opacity: 0.6 })));
+carriage.add(spreader);
+
+// Blood: drop + smear (contact point ke peeche phailta hai)
+const blood = new THREE.Group();
+const bloodMat = new THREE.MeshStandardMaterial({ color: 0x9b0a14, roughness: 0.3 });
+const drop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), bloodMat);
+const dropX = P.carriage.contactMin - 1.5;
+drop.scale.set(2.2, 2.2, 0.6);
+drop.position.set(dropX, 0, P.slide.topZ);
+const cnv = document.createElement('canvas'); cnv.width = 256; cnv.height = 16;
+const g2 = cnv.getContext('2d');
+const grd = g2.createLinearGradient(0, 0, 256, 0);
+grd.addColorStop(0, 'rgba(150,10,20,0.85)'); grd.addColorStop(0.75, 'rgba(170,20,30,0.45)');
+grd.addColorStop(1, 'rgba(180,30,40,0.0)');
+g2.fillStyle = grd; g2.fillRect(0, 0, 256, 16);
+const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3),
+  new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cnv), transparent: true, depthWrite: false }));
+smear.position.z = P.slide.topZ + 0.02;
+blood.add(drop, smear);
+
+scene.add(baseMesh, carriage, slide, blood);
+for (const m of [baseMesh, carriageMesh]) { m.castShadow = m.receiveShadow = true; }
+
+parts.base = { label: 'Base plate (print)', obj: baseMesh, color: '#3d7fd9' };
+parts.carriage = { label: 'Carriage block (print)', obj: carriageMesh, color: '#f08a24' };
+parts.slide = { label: 'Base slide (glass)', obj: slide, color: '#bfe6ff' };
+parts.spreader = { label: 'Spreader slide (glass)', obj: spreader, color: '#a8f0d8' };
+parts.blood = { label: 'Blood drop / smear', obj: blood, color: '#9b0a14' };
+
+const tog = document.getElementById('toggles');
+for (const [k, p] of Object.entries(parts)) {
+  const l = document.createElement('label'); l.className = 'row';
+  l.innerHTML = `<input type="checkbox" checked data-k="${k}"><span class="sw" style="background:${p.color}"></span>${p.label}`;
+  l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
+  tog.appendChild(l);
+}
+
+// ---------- load STLs ----------
+const loader = new STLLoader();
+const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+try {
+  const [gb, gc] = await Promise.all([load('base.stl'), load('carriage.stl')]);
+  gb.computeVertexNormals(); baseMesh.geometry = gb;
+  // carriage.stl print orientation mein hai -> wapas assembly frame mein
+  const s = P.carriage.printShift;
+  gc.translate(-s[0], -s[1], -s[2]);
+  gc.rotateX(-THREE.MathUtils.degToRad(P.carriage.printRotXDeg));
+  gc.computeVertexNormals(); carriageMesh.geometry = gc;
+} catch (e) { fail('STL load nahi hua: ' + e.message); }
+
+// ---------- motion + exploded ----------
+const travel = document.getElementById('travel');
+const travelVal = document.getElementById('travelVal');
+const { contactMin: cMin, contactMax: cMax } = P.carriage;
+let explodeT = 0, explodeTarget = 0, playing = false, dir = 1;
+
+function applyTravel() {
+  const f = travel.value / 1000;
+  const x = cMin + f * (cMax - cMin);
+  carriage.position.x = x;
+  const len = Math.max(0.01, x - dropX);
+  smear.scale.x = len; smear.position.x = dropX + len / 2;
+  smear.visible = f > 0.002;
+  const k = 1 - 0.6 * f; drop.scale.set(2.2 * k, 2.2 * k, 0.6 * k);
+  travelVal.textContent = `Contact X = ${x.toFixed(1)} mm   (smear ${(x - cMin).toFixed(1)} mm)`;
+}
+travel.oninput = () => { playing = false; playBtn.textContent = '▶ Play'; applyTravel(); };
+applyTravel();
+
+const playBtn = document.getElementById('play');
+playBtn.onclick = () => {
+  playing = !playing; playBtn.textContent = playing ? '❚❚ Pause' : '▶ Play';
+  if (playing && +travel.value >= 1000) travel.value = 0;
+};
+const explodeBtn = document.getElementById('explode');
+explodeBtn.onclick = () => {
+  explodeTarget = explodeTarget ? 0 : 1;
+  explodeBtn.classList.toggle('on', !!explodeTarget);
+  explodeBtn.textContent = explodeTarget ? 'Assembled view' : 'Exploded view';
+};
+document.getElementById('reset').onclick = resetView;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (playing) {
+    let v = +travel.value + dir * dt * 250;
+    if (v >= 1000) { v = 1000; playing = false; playBtn.textContent = '▶ Play'; }
+    travel.value = v; applyTravel();
+  }
+  explodeT += (explodeTarget - explodeT) * Math.min(1, dt * 6);
+  const e = explodeT;
+  slide.position.z = P.slide.topZ - P.slide.T / 2 + 10 * e;
+  blood.position.z = 10 * e;
+  carriage.position.z = 30 * e;
+  carriage.position.y = 0;
+  spreader.position.z = P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2 + 28 * e;
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
