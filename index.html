@@ -214,13 +214,25 @@ const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3),
 smear.position.z = P.slide.topZ + 0.02;
 blood.add(drop, smear);
 
-model.add(baseMesh, carriage, slide, blood);
+// retaining pins (1.75 mm filament) - carriage ko peeche se nikalne nahi dete
+const pins = new THREE.Group();
+const pinMat = plastic(0xd8dde4);
+for (const side of [1, -1]) {
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.d / 2, P.pin.d / 2, P.pin.len, 20), pinMat);
+  pin.rotation.x = Math.PI / 2;            // cylinder axis Y -> Z
+  pin.position.set(P.pin.x, side * P.pin.y, P.pin.z0 + P.pin.len / 2);
+  pin.castShadow = true;
+  pins.add(pin);
+}
+
+model.add(baseMesh, carriage, slide, blood, pins);
 
 const parts = {
   base:     { label: 'Base plate',  obj: baseMesh,     color: '#3d7fd9' },
   carriage: { label: 'Carriage',    obj: carriageMesh, color: '#f08a24' },
   slide:    { label: 'Base slide',  obj: slide,        color: '#bfe6ff' },
   spreader: { label: 'Spreader',    obj: spreader,     color: '#a8f0d8' },
+  pins:     { label: 'Stop pins',   obj: pins,         color: '#d8dde4' },
   blood:    { label: 'Blood',       obj: blood,        color: '#9b0a14' },
 };
 for (const p of Object.values(parts)) {
@@ -344,6 +356,7 @@ renderer.setAnimationLoop(() => {
   slide.position.z = P.slide.topZ - P.slide.T / 2 + 10 * e;
   blood.position.z = 10 * e;
   carriage.position.z = 30 * e;
+  pins.position.z = 16 * e;
   spreader.position.z = spreaderZ + 28 * e;
   controls.update();
   renderer.render(scene, camera);
