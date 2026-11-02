@@ -18,6 +18,8 @@ stop) and open at the back so the carriage can be slid in; a removable pin
 """
 import json
 import math
+import struct
+from collections import Counter
 from pathlib import Path
 
 import cadquery as cq
@@ -135,6 +137,10 @@ def checks():
     }
     for name, v in walls.items():
         assert v >= MIN_WALL - 1e-9, f"{name} = {v:.2f} mm < {MIN_WALL}"
+    # FDM parts never fit at (near) zero clearance
+    for name, v in (("CLR_RAIL", CLR_RAIL), ("CLR_SLIDE", CLR_SLIDE)):
+        assert 0.15 <= v <= 0.6, f"{name} = {v} mm is outside the printable range 0.15 - 0.6"
+    assert PIN_HOLE_D - PIN_D >= 0.0, "pin hole is smaller than the pin"
     assert PIN_HOLE_D < GROOVE_NECK_W, "pin won't pass through the groove neck"
     assert yb > neck + 0.5, "tongue undercut too small - carriage won't stay captive"
     assert RAIL_INNER_Y > SPREADER_W / 2, "spreader doesn't fit between the rails"
@@ -237,24 +243,67 @@ def interference(p, q):
     return r.val().Volume() if r.vals() else 0.0
 
 
+def verify_stl(path, cad_volume):
+    """Re-read an exported STL and check it is printable: watertight (every edge
+    shared by exactly two triangles), outward normals (positive volume), volume
+    matching the CAD solid, and resting flat on the bed (z min = 0)."""
+    data = Path(path).read_bytes()
+    n = struct.unpack_from("<I", data, 80)[0]
+    assert len(data) == 84 + 50 * n, f"{path.name}: not a valid binary STL"
+    key = lambda v: tuple(round(c, 4) for c in v)
+    edges, vol, zmin, bed_area = Counter(), 0.0, math.inf, 0.0
+    for i in range(n):
+        f = struct.unpack_from("<12f", data, 84 + 50 * i)
+        v = [f[3:6], f[6:9], f[9:12]]
+        ks = [key(p) for p in v]
+        for j in range(3):
+            a_, b_ = ks[j], ks[(j + 1) % 3]
+            edges[(a_, b_) if a_ < b_ else (b_, a_)] += 1
+        (x1, y1, z1), (x2, y2, z2), (x3, y3, z3) = v
+        vol += (x1 * (y2 * z3 - y3 * z2) - x2 * (y1 * z3 - y3 * z1) + x3 * (y1 * z2 - y2 * z1)) / 6
+        zmin = min(zmin, z1, z2, z3)
+        if max(z1, z2, z3) < 1e-4:   # triangle lying on the bed
+            bed_area += abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1)) / 2
+    bad = sum(1 for c in edges.values() if c != 2)
+    assert bad == 0, f"{path.name}: {bad} non-manifold / open edges"
+    assert vol > 0, f"{path.name}: inverted normals"
+    assert abs(vol - cad_volume) / cad_volume < 0.01, \
+        f"{path.name}: volume {vol:.0f} vs CAD {cad_volume:.0f} mm^3"
+    assert abs(zmin) < 1e-4, f"{path.name}: not sitting on the bed (z min = {zmin:.3f})"
+    assert bed_area > 100, f"{path.name}: only {bed_area:.0f} mm^2 touching the bed"
+    return n, vol, bed_area
+
+
 def main():
     walls = checks()
     base = make_base()
     carriage = make_carriage()
     pins = make_pins()
 
-    # Travel: back to the pin, forward to the end stop (and short of the slide's end)
-    contact_min = (PIN_X + PIN_D / 2 + 0.5) - X_BACK
+    # Travel: back to the pin, forward to the end stop (and short of the slide's end).
+    # Use the carriage's real extents, not just the tongue, so that no part of the
+    # body (e.g. the sloped back at other angles) can run into the pins.
+    cb = carriage.val().BoundingBox()
+    assert cb.xmax <= X_FRONT + 1e-6, "carriage sticks out past the tongue's front end"
+    # Only the part of the carriage below the pin tops can hit the pins
+    pin_top = GROOVE_FLOOR - PIN_HOLE_DEPTH + PIN_LEN
+    below_pins = cq.Workplane("XY", origin=(0, 0, -50)).box(1000, 1000, pin_top + 50.5,
+                                                             centered=(True, True, False))
+    low_xmin = carriage.intersect(below_pins).val().BoundingBox().xmin
+    contact_min = (PIN_X + PIN_D / 2 + 0.5) - low_xmin
     contact_max = min(BASE_L - FRONT_STOP - 0.5 - X_FRONT, SLIDE_X0 + SLIDE_L - 3)
+    assert contact_min > SLIDE_X0 + 3, "spreader would start off the slide"
     assert contact_max > contact_min + 30, "smear travel is less than 30 mm"
 
-    # Fit / interference checks (at both ends of travel)
-    for cx in (contact_min, contact_max):
+    # Fit / interference checks at 5 points along the travel
+    for i in range(5):
+        cx = contact_min + (contact_max - contact_min) * i / 4
         c = carriage.translate((cx, 0, 0))
         slide, spreader = glass_solids(cx)
         for name, (p, q) in {"carriage-base": (c, base), "carriage-pins": (c, pins),
-                             "carriage-spreader": (c, spreader), "base-slide": (base, slide),
-                             "base-spreader": (base, spreader), "base-pins": (base, pins)}.items():
+                             "carriage-slide": (c, slide), "carriage-spreader": (c, spreader),
+                             "base-slide": (base, slide), "base-spreader": (base, spreader),
+                             "base-pins": (base, pins), "spreader-pins": (spreader, pins)}.items():
             v = interference(p, q)
             assert v < 1e-3, f"interference {name} @x={cx:.1f}: {v:.4f} mm^3"
 
@@ -278,6 +327,12 @@ def main():
     shift = (-bb.xmin, -bb.ymin, -bb.zmin)
     rot = rot.translate(shift)
     cq.exporters.export(rot, str(OUT / "carriage.stl"), tolerance=STL_TOL, angularTolerance=STL_ANG_TOL)
+
+    # Re-read the exported files and make sure they are printable
+    for fname, part in (("base.stl", base), ("carriage.stl", rot)):
+        n, vol, bed = verify_stl(OUT / fname, part.val().Volume())
+        print(f"{fname}: {n} triangles, watertight, volume {vol / 1000:.2f} cm^3 "
+              f"(CAD {part.val().Volume() / 1000:.2f}), {bed:.0f} mm^2 on the bed")
 
     params = {
         "base": {"L": BASE_L, "W": BASE_W, "plateTop": PLATE_TOP, "railTop": RAIL_TOP},

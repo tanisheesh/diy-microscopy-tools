@@ -27,12 +27,18 @@ py -3.14 spreader_model.py
 ```
 
 Before exporting the STLs, the script checks:
-- Minimum wall thickness ≥ 1.6 mm
-- No interference between the carriage, base, pins and both glass slides, at both ends of travel
+- Minimum wall thickness ≥ 1.6 mm, and clearances within the printable range (0.15–0.6 mm)
+- No interference between the carriage, base, pins and both glass slides, at 5 points along the travel
 - Captive fit: lifting the carriage collides with the base, and the pin and front stop block both ends
 - Each part is a single valid solid
 
-If any check fails, no STL is exported.
+If any of these fail, no STL is exported.
+
+After exporting, it re-reads both STL files and checks that they are printable:
+- **Watertight:** every edge is shared by exactly two triangles.
+- **Normals face outward.**
+- **Volume matches the CAD model** within 1%.
+- **Sits flat on the bed** at z = 0.
 
 CadQuery 2.8 is installed in the global Python 3.14 (64-bit), so run the script with `py -3.14`. The default `python` is 3.15 32-bit, and there is no CadQuery wheel for it.
 
