@@ -90,9 +90,9 @@
     <div class="titles">
       <h1>Blood Smear Spreader</h1>
       <div class="sub hint-mouse">Drag = rotate · scroll = zoom · right-drag = pan</div>
-      <div class="sub hint-touch">1 ungli = ghumao · 2 ungli = zoom / pan</div>
+      <div class="sub hint-touch">1 finger = rotate · 2 fingers = zoom / pan</div>
     </div>
-    <button id="toggle" aria-expanded="true" aria-label="Parts aur downloads dikhao / chhupao"><span>▾</span></button>
+    <button id="toggle" aria-expanded="true" aria-label="Show / hide parts and downloads"><span>▾</span></button>
   </div>
 
   <div class="body">
@@ -114,7 +114,7 @@
         <a class="btn" href="base.stl" download>⬇ base.stl</a>
         <a class="btn" href="carriage.stl" download>⬇ carriage.stl</a>
       </div>
-      <div class="sub" style="margin-top:8px">Glass slides sirf yahan dikhane ke liye hain, inhe print nahi karna.</div>
+      <div class="sub" style="margin-top:8px">Glass slides are shown for reference only - do not print them.</div>
     </section>
     <div id="err"></div>
   </div>
@@ -133,7 +133,7 @@ const isCompact = () => isMobile() || matchMedia('(max-height: 520px)').matches;
 
 let P;
 try { P = await (await fetch('params.json')).json(); }
-catch (e) { fail('params.json load nahi hua. Page ko web server se kholo, file:// se nahi.'); throw e; }
+catch (e) { fail('Could not load params.json. Open this page through a web server, not via file://.'); throw e; }
 
 // ---------- renderer / scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -312,7 +312,7 @@ try {
   gc.translate(-s[0], -s[1], -s[2]);
   gc.rotateX(-THREE.MathUtils.degToRad(P.carriage.printRotXDeg));
   gc.computeVertexNormals(); carriageMesh.geometry = gc;
-} catch (e) { fail('STL load nahi hua: ' + e.message); }
+} catch (e) { fail('Could not load STL: ' + e.message); }
 
 // ---------- motion + exploded ----------
 const travel = $('travel'), travelVal = $('travelVal'), playBtn = $('play'), explodeBtn = $('explode');
