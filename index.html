@@ -176,7 +176,7 @@ const edges = (mesh, c) => mesh.add(new THREE.LineSegments(new THREE.EdgesGeomet
 // ---------- parts ----------
 const a = THREE.MathUtils.degToRad(P.spreader.angleDeg);
 const S = P.spreader;
-const model = new THREE.Group();          // framing ke liye sab kuch
+const model = new THREE.Group();          // everything, used for camera framing
 scene.add(model);
 
 const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x3d7fd9));
@@ -190,13 +190,13 @@ slide.position.set(P.slide.x0 + P.slide.L / 2, 0, P.slide.topZ - P.slide.T / 2);
 edges(slide, 0x4a8fbf);
 
 const spreader = new THREE.Mesh(new THREE.BoxGeometry(S.L, S.W, S.T), glassMat(0xa8f0d8));
-spreader.rotation.y = a;                  // box +X -> glass ke along, +Z -> glass normal
+spreader.rotation.y = a;                  // box +X -> along the glass, +Z -> glass normal
 const spreaderZ = P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2;
 spreader.position.set(-Math.cos(a) * S.L / 2 + Math.sin(a) * S.T / 2, 0, spreaderZ);
 edges(spreader, 0x2f8f73);
 carriage.add(spreader);
 
-// blood: drop + smear jo contact point ke peeche phailta hai
+// blood: drop + smear that spreads behind the contact point
 const blood = new THREE.Group();
 const drop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16),
   new THREE.MeshStandardMaterial({ color: 0x9b0a14, roughness: 0.3 }));
@@ -214,7 +214,7 @@ const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3),
 smear.position.z = P.slide.topZ + 0.02;
 blood.add(drop, smear);
 
-// retaining pins (1.75 mm filament) - carriage ko peeche se nikalne nahi dete
+// retaining pins (1.75 mm filament) - stop the carriage sliding out the back
 const pins = new THREE.Group();
 const pinMat = plastic(0xd8dde4);
 for (const side of [1, -1]) {
@@ -242,9 +242,9 @@ for (const p of Object.values(parts)) {
   $('toggles').appendChild(l);
 }
 
-// ---------- layout: panel ke peeche model na chhupe ----------
+// ---------- layout: keep the model out from behind the panel ----------
 const panel = $('panel');
-let free = { w: innerWidth, h: innerHeight };   // screen ka khula hissa
+let free = { w: innerWidth, h: innerHeight };   // unobstructed part of the screen
 function layout() {
   const W = innerWidth, H = innerHeight;
   renderer.setSize(W, H);
@@ -253,12 +253,12 @@ function layout() {
   const occLeft = isMobile() ? 0 : r.right;
   const occBottom = isMobile() ? Math.max(0, H - r.top) : 0;
   free = { w: W - occLeft, h: H - occBottom };
-  // projection ko shift karo taaki scene ka centre khule hisse ke beech mein aaye
+  // shift the projection so the scene centre lands in the middle of the free area
   camera.setViewOffset(W, H, -occLeft / 2, occBottom / 2, W, H);
   camera.updateProjectionMatrix();
 }
 
-// Model ka box: carriage ke dono travel ends shamil (spreader travel ke saath hilta hai)
+// Model bounds, including both carriage travel ends (the spreader moves with it)
 function modelBox() {
   const keep = travel.value, box = new THREE.Box3();
   for (const v of [0, 1000]) { travel.value = v; applyTravel(); model.updateMatrixWorld(true); box.expandByObject(model); }
@@ -266,7 +266,7 @@ function modelBox() {
   return box;
 }
 
-// Box ke 8 corners project karke exact distance nikaalo jisme sab khule hisse mein fit ho
+// Project the 8 box corners to get the exact distance that fits everything in the free area
 function frame() {
   const box = modelBox();
   const c = box.getCenter(new THREE.Vector3());
@@ -294,7 +294,7 @@ function setCollapsed(c) {
   panel.classList.toggle('collapsed', c);
   toggleBtn.setAttribute('aria-expanded', String(!c));
 }
-setCollapsed(isCompact());  // phone pe shuru mein sirf main controls
+setCollapsed(isCompact());  // on phones, start with only the main controls
 toggleBtn.onclick = (e) => { e.stopPropagation(); setCollapsed(!panel.classList.contains('collapsed')); };
 $('head').onclick = () => { if (isMobile()) setCollapsed(!panel.classList.contains('collapsed')); };
 new ResizeObserver(layout).observe(panel);
@@ -307,7 +307,7 @@ const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined,
 try {
   const [gb, gc] = await Promise.all([load('base.stl'), load('carriage.stl')]);
   gb.computeVertexNormals(); baseMesh.geometry = gb;
-  // carriage.stl print orientation mein hai -> wapas assembly frame mein
+  // carriage.stl is in print orientation -> transform back to the assembly frame
   const s = P.carriage.printShift;
   gc.translate(-s[0], -s[1], -s[2]);
   gc.rotateX(-THREE.MathUtils.degToRad(P.carriage.printRotXDeg));
@@ -340,7 +340,7 @@ $('reset').onclick = () => { layout(); frame(); };
 
 applyTravel();
 frame();
-// phone rotate karne pe dobara fit
+// refit when the phone is rotated
 matchMedia('(orientation: portrait)').addEventListener('change', () => setTimeout(() => { layout(); frame(); }, 150));
 
 const clock = new THREE.Clock();

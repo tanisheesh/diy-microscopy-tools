@@ -1,20 +1,20 @@
 """
 Blood smear slide spreader - parametric CadQuery model.
 
-Saare dimensions mm mein. Sirf PARAMETERS section badlo, phir chalao:
+All dimensions are in mm. Change only the PARAMETERS section, then run:
     py -3.14 spreader_model.py
 
-Output: base.stl, carriage.stl (print orientation), params.json (viewer ke liye).
+Output: base.stl, carriage.stl (print orientation), params.json (for the viewer).
 
 Coordinate system (assembly):
-    X = slide ki lambai / push direction, Y = width (centre 0), Z = upar.
-    Base ka bottom z = 0.
-Spreader ka glass contact point carriage ke local X = 0 pe hota hai.
+    X = slide length / push direction, Y = width (centred on 0), Z = up.
+    Bottom of the base is at z = 0.
+The spreader's glass contact point is at carriage-local X = 0.
 
-Carriage captive hai: uske dovetail-T tongues rails ki undercut grooves mein
-phanse rehte hain (upar nahi uth sakta). Groove aage se band hai (end stop),
-peeche se khuli hai taaki carriage andar daal sako; wahan ek removable pin
-(1.75 mm filament ka tukda) carriage ko bahar nikalne se rokta hai.
+The carriage is captive: its dovetail-T tongues are trapped in undercut grooves
+in the rails, so it cannot lift off. The grooves are closed at the front (end
+stop) and open at the back so the carriage can be slid in; a removable pin
+(a short piece of 1.75 mm filament) then stops it from sliding out the back.
 """
 import json
 import math
@@ -23,46 +23,46 @@ from pathlib import Path
 import cadquery as cq
 
 # ============================== PARAMETERS ==============================
-# Glass slides (sirf fit ke liye - print nahi hoti)
-SLIDE_L, SLIDE_W, SLIDE_T = 75.0, 25.0, 1.0        # base microscope slide
+# Glass slides (used for fit only - these are not printed)
+SLIDE_L, SLIDE_W, SLIDE_T = 75.0, 25.0, 1.0        # base microscope slide (ISO/DIN)
 SPREADER_L, SPREADER_W, SPREADER_T = 75.0, 25.0, 1.0  # spreader slide
-SPREADER_ANGLE = 45.0       # degrees, spreader aur base slide ke beech
+SPREADER_ANGLE = 45.0       # degrees, between spreader and base slide
 
 # Print tolerances
-CLR_SLIDE = 0.30            # slide bed aur spreader slot, har taraf
-CLR_RAIL = 0.25             # carriage tongue <-> rail groove, har taraf
-MIN_WALL = 1.6              # check ke liye
+CLR_SLIDE = 0.30            # slide bed and spreader slot, per side
+CLR_RAIL = 0.25             # carriage tongue <-> rail groove, per side
+MIN_WALL = 1.6              # used by the wall-thickness checks
 
 # Base plate
 BASE_L, BASE_W = 100.0, 44.0
-PLATE_TOP = 4.0             # plate top surface ki height
-SLIDE_PROUD = 0.2           # slide plate se kitni upar rahe (spreader glass pe chale)
-NOTCH_R, NOTCH_EXTRA_DEPTH = 6.0, 1.5   # slide nikalne ke finger notch
+PLATE_TOP = 4.0             # height of the plate's top surface
+SLIDE_PROUD = 0.2           # how far the slide sits above the plate (so the spreader rides on glass)
+NOTCH_R, NOTCH_EXTRA_DEPTH = 6.0, 1.5   # finger notches for lifting the slide out
 
-# Rails (dono taraf) + captive dovetail-T groove
+# Rails (both sides) + captive dovetail-T groove
 RAIL_W = 8.6
-RAIL_H = 5.0                # plate top ke upar
-GROOVE_NECK_W = 2.6         # groove ka upar wala khula hissa
-GROOVE_NECK_H = 1.6         # rail ke lip ki motai (undercut ke upar)
-GROOVE_W = 5.4              # 45 deg flare ke baad andar ki max width
-FRONT_STOP = 4.0            # groove aage se itni band (end stop)
+RAIL_H = 5.0                # above the plate top
+GROOVE_NECK_W = 2.6         # open top part of the groove
+GROOVE_NECK_H = 1.6         # thickness of the rail lip (above the undercut)
+GROOVE_W = 5.4              # max inner width after the 45 deg flare
+FRONT_STOP = 4.0            # groove is closed for this length at the front (end stop)
 
-# Retaining pin (peeche ka stop) - 1.75 mm filament ka tukda
+# Retaining pin (rear stop) - a piece of 1.75 mm filament
 PIN_D = 1.75
-PIN_HOLE_D = 1.8           # snug: printed hole ~0.1 chhota aata hai -> halka press-fit
-PIN_X = 4.0                 # base ke peeche wale end se
-PIN_HOLE_DEPTH = 3.0        # groove floor ke neeche (jitna gehra, utna pakka pakad)
-PIN_LEN = 11.0              # rail top se ~5 mm bahar rahe, pakad ke kheenchne ke liye
+PIN_HOLE_D = 1.8            # snug: printed holes come out ~0.1 mm small -> light press fit
+PIN_X = 4.0                 # distance from the rear end of the base
+PIN_HOLE_DEPTH = 3.0        # below the groove floor (deeper = firmer grip)
+PIN_LEN = 11.0              # leaves ~5 mm above the rail top to grab and pull
 
 # Carriage
-CARRIAGE_H = 14.0           # rail top ke upar body height
-CARRIAGE_LEN = 32.0         # rails pe footprint length
-FOOT_H = 4.0                # pichhla stabilising foot
-RAMP_T = 3.0                # slot ke peeche ki material (perpendicular)
-FRONT_WALL = 4.0            # slot ke aage bottom pe material
+CARRIAGE_H = 14.0           # body height above the rail top
+CARRIAGE_LEN = 32.0         # footprint length on the rails
+FOOT_H = 4.0                # rear stabilising foot
+RAMP_T = 3.0                # material behind the slot (perpendicular to it)
+FRONT_WALL = 4.0            # material in front of the slot at the bottom
 KNOB_R = 5.5                # full-width finger grip (side-print friendly)
-KNOB_LIFT = 2.5             # knob centre body top se kitna upar
-KNOB_SETBACK = 8.0          # front face se knob centre
+KNOB_LIFT = 2.5             # knob centre height above the body top
+KNOB_SETBACK = 8.0          # knob centre distance from the front face
 
 STL_TOL, STL_ANG_TOL = 0.02, 0.1
 # =======================================================================
@@ -81,11 +81,11 @@ SLIDE_TOP_Z = PLATE_TOP - RECESS_DEPTH + SLIDE_T
 RAIL_TOP = PLATE_TOP + RAIL_H
 RAIL_INNER_Y = BASE_W / 2 - RAIL_W
 GROOVE_Y = BASE_W / 2 - RAIL_W / 2
-FLARE = (GROOVE_W - GROOVE_NECK_W) / 2          # 45 deg flare ki height = width
+FLARE = (GROOVE_W - GROOVE_NECK_W) / 2          # 45 deg flare: height = width
 GROOVE_DEPTH = GROOVE_NECK_H + FLARE
 GROOVE_FLOOR = RAIL_TOP - GROOVE_DEPTH
 SLOT_W = SPREADER_W + 2 * CLR_SLIDE
-T_LO, T_HI = -CLR_SLIDE, SPREADER_T + CLR_SLIDE   # slot faces (glass t in [0, T])
+T_LO, T_HI = -CLR_SLIDE, SPREADER_T + CLR_SLIDE   # slot faces (glass occupies t in [0, T])
 T_BACK = T_LO - RAMP_T
 
 Z_BOT = RAIL_TOP
@@ -94,7 +94,7 @@ Z_FOOT = Z_BOT + FOOT_H
 
 
 def glass_xz(s, t):
-    """Glass frame -> carriage-local XZ. s = glass ke along (upar-peeche), t = thickness."""
+    """Glass frame -> carriage-local XZ. s = along the glass (up and back), t = through its thickness."""
     return (-math.cos(a) * s + math.sin(a) * t,
             SLIDE_TOP_Z + math.sin(a) * s + math.cos(a) * t)
 
@@ -109,11 +109,11 @@ X_BACK = X_FRONT - CARRIAGE_LEN
 
 
 def groove_half_profile(c=0.0):
-    """Groove ka right-half (y >= 0, groove centre se), z rail top se relative.
-    c > 0 => tongue: groove ko c se andar shrink kiya (har face pe normal clearance)."""
+    """Right half of the groove (y >= 0 from the groove centre), z relative to the rail top.
+    c > 0 => tongue: the groove shrunk by c (normal clearance on every face)."""
     neck = GROOVE_NECK_W / 2 - c
     floor = -GROOVE_DEPTH + c
-    # 45 deg flare line: y + z = k ; erosion se k chhota hota hai
+    # 45 deg flare line: y + z = k ; offsetting inward lowers k
     k = GROOVE_NECK_W / 2 - GROOVE_NECK_H - c * SQ2
     z_flare_top = k - neck
     y_bottom = k - floor
@@ -135,28 +135,28 @@ def checks():
     }
     for name, v in walls.items():
         assert v >= MIN_WALL - 1e-9, f"{name} = {v:.2f} mm < {MIN_WALL}"
-    assert PIN_HOLE_D < GROOVE_NECK_W, "pin groove ke neck se andar nahi jaayega"
-    assert yb > neck + 0.5, "tongue ka undercut bahut chhota - captive nahi rahega"
-    assert RAIL_INNER_Y > SPREADER_W / 2, "spreader rails ke beech fit nahi hota"
-    assert RAIL_INNER_Y >= RECESS_W / 2, "slide bed rails mein ghus raha hai"
+    assert PIN_HOLE_D < GROOVE_NECK_W, "pin won't pass through the groove neck"
+    assert yb > neck + 0.5, "tongue undercut too small - carriage won't stay captive"
+    assert RAIL_INNER_Y > SPREADER_W / 2, "spreader doesn't fit between the rails"
+    assert RAIL_INNER_Y >= RECESS_W / 2, "slide bed cuts into the rails"
     assert x_on_face(Z_FOOT, T_BACK) > X_BACK, "foot too short"
     walls["undercut grip per side"] = yb - GROOVE_NECK_W / 2
     return walls
 
 
 def xz_prism(points, width):
-    """XZ polygon ko Y mein symmetric extrude."""
+    """Extrude an XZ polygon symmetrically along Y."""
     return cq.Workplane("XZ").polyline(points).close().extrude(width / 2, both=True)
 
 
 def yz_prism(points, x0, length):
-    """YZ polygon ko X = x0 .. x0+length extrude."""
+    """Extrude a YZ polygon from X = x0 to x0 + length."""
     return (cq.Workplane("YZ", origin=(x0, 0, 0))
             .polyline(points).close().extrude(length))
 
 
 def mirrored_profile(gy, z0, half, top_extra):
-    """groove_half_profile ko groove centre gy pe poora polygon banao."""
+    """Build the full polygon from groove_half_profile, centred on groove centre gy."""
     neck, zft, floor, yb = half
     right = [(neck, top_extra), (neck, zft), (yb, floor)]
     pts = right + [(-y, z) for y, z in reversed(right)]
@@ -171,7 +171,7 @@ def make_base():
                          (y_out, RAIL_TOP), (y_in, RAIL_TOP)], 0, BASE_L)
         base = base.union(rail)
         gy = side * GROOVE_Y
-        # groove: peeche (x=0) se khuli, aage FRONT_STOP pe band
+        # groove: open at the rear (x = 0), closed FRONT_STOP from the front
         groove = yz_prism(mirrored_profile(gy, RAIL_TOP, groove_half_profile(0.0), 1.0),
                           -1, BASE_L - FRONT_STOP + 1)
         base = base.cut(groove)
@@ -199,7 +199,7 @@ def make_pins():
 
 
 def make_carriage():
-    """Carriage-local frame: spreader contact X = 0, Z assembly height wala."""
+    """Carriage-local frame: spreader contact at X = 0, Z at assembly height."""
     back_top = x_on_face(Z_TOP, T_BACK)
     back_foot = x_on_face(Z_FOOT, T_BACK)
     profile = [(X_FRONT, Z_BOT), (X_FRONT, Z_TOP), (back_top, Z_TOP),
@@ -211,7 +211,7 @@ def make_carriage():
             .circle(KNOB_R).extrude(BASE_W / 2, both=True))
     body = body.union(knob)
 
-    # Dovetail-T tongues: groove ko CLR_RAIL se shrink kiya
+    # Dovetail-T tongues: the groove shrunk by CLR_RAIL
     for side in (1, -1):
         tongue = yz_prism(mirrored_profile(side * GROOVE_Y, Z_BOT, groove_half_profile(CLR_RAIL), 0.01),
                           X_BACK, X_FRONT - X_BACK)
@@ -243,12 +243,12 @@ def main():
     carriage = make_carriage()
     pins = make_pins()
 
-    # Travel: peeche pin tak, aage end stop tak (aur slide ke end se pehle)
+    # Travel: back to the pin, forward to the end stop (and short of the slide's end)
     contact_min = (PIN_X + PIN_D / 2 + 0.5) - X_BACK
     contact_max = min(BASE_L - FRONT_STOP - 0.5 - X_FRONT, SLIDE_X0 + SLIDE_L - 3)
-    assert contact_max > contact_min + 30, "smear travel 30 mm se kam hai"
+    assert contact_max > contact_min + 30, "smear travel is less than 30 mm"
 
-    # Fit / interference checks (dono travel ends pe)
+    # Fit / interference checks (at both ends of travel)
     for cx in (contact_min, contact_max):
         c = carriage.translate((cx, 0, 0))
         slide, spreader = glass_solids(cx)
@@ -258,21 +258,21 @@ def main():
             v = interference(p, q)
             assert v < 1e-3, f"interference {name} @x={cx:.1f}: {v:.4f} mm^3"
 
-    # Captive checks: carriage upar uthe, ya travel ke bahar jaaye, to takkar honi chahiye
+    # Captive checks: lifting the carriage, or moving it past either end, must collide
     mid = (contact_min + contact_max) / 2
     lift = CLR_RAIL * SQ2 + 0.3
-    assert interference(carriage.translate((mid, 0, lift)), base) > 1, "carriage upar uth jaata hai!"
-    assert interference(carriage.translate((contact_min - 1.5, 0, 0)), pins) > 0.1, "pin carriage ko nahi rokta"
+    assert interference(carriage.translate((mid, 0, lift)), base) > 1, "carriage can lift off!"
+    assert interference(carriage.translate((contact_min - 1.5, 0, 0)), pins) > 0.1, "pin doesn't stop the carriage"
     assert interference(carriage.translate((BASE_L - FRONT_STOP - X_FRONT + 1, 0, 0)), base) > 0.1, \
-        "front end stop carriage ko nahi rokta"
+        "front end stop doesn't stop the carriage"
 
     for name, part in (("base", base), ("carriage", carriage)):
-        assert part.val().isValid(), f"{name} solid invalid"
-        assert len(part.solids().vals()) == 1, f"{name} ek solid nahi hai"
+        assert part.val().isValid(), f"{name} solid is invalid"
+        assert len(part.solids().vals()) == 1, f"{name} is not a single solid"
 
     # Print orientation
     cq.exporters.export(base, str(OUT / "base.stl"), tolerance=STL_TOL, angularTolerance=STL_ANG_TOL)
-    # Carriage side pe (Y -> Z): slot, knob, tongues sab bina support
+    # Carriage on its side (Y -> Z): slot, knob and tongues all print without supports
     rot = carriage.rotate((0, 0, 0), (1, 0, 0), 90)
     bb = rot.val().BoundingBox()
     shift = (-bb.xmin, -bb.ymin, -bb.zmin)
