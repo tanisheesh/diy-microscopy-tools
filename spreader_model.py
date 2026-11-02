@@ -49,10 +49,10 @@ FRONT_STOP = 4.0            # groove aage se itni band (end stop)
 
 # Retaining pin (peeche ka stop) - 1.75 mm filament ka tukda
 PIN_D = 1.75
-PIN_HOLE_D = 2.0
+PIN_HOLE_D = 1.8           # snug: printed hole ~0.1 chhota aata hai -> halka press-fit
 PIN_X = 4.0                 # base ke peeche wale end se
-PIN_HOLE_DEPTH = 2.0        # groove floor ke neeche
-PIN_LEN = 10.0
+PIN_HOLE_DEPTH = 3.0        # groove floor ke neeche (jitna gehra, utna pakka pakad)
+PIN_LEN = 11.0              # rail top se ~5 mm bahar rahe, pakad ke kheenchne ke liye
 
 # Carriage
 CARRIAGE_H = 14.0           # rail top ke upar body height

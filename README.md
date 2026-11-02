@@ -65,8 +65,10 @@ Phir browser mein **http://localhost:8000** kholo. `index.html` ko `file://` se 
   - Aage ke end pe 4 mm band hai (end stop).
 - **Carriage tongue:** groove se har face pe 0.25 mm chhota. Lip ke neeche har taraf 0.8 mm phansa rehta hai. Upar uthane ki koshish karo to 0.35 mm ke baad atak jaata hai.
 - **Stop pins:**
-  - 1.75 mm filament ke do tukde, har ek ~10 mm lamba.
-  - Peeche ke end se 4 mm pe groove floor mein Ø2.0 × 2 mm ke hole mein jaate hain.
+  - 1.75 mm filament ke do tukde, har ek ~11 mm lamba.
+  - Peeche ke end se 4 mm pe groove floor mein Ø1.8 × 3 mm ke hole mein jaate hain.
+  - Printed hole aam taur pe ~0.1 mm chhota banta hai, isliye pin halka daba ke andar jaata hai aur base ulta karne pe bhi nahi girta.
+  - Pin rail ke upar ~5 mm bahar rehta hai, kheenchne ke liye.
 - **Slide bed:**
   - 75.6 × 25.6 × 0.8 mm deep.
   - Slide plate se 0.2 mm upar rehti hai, taaki spreader glass pe chale.
@@ -104,8 +106,19 @@ Fit tuning:
 
 1. Base slide ko bed mein rakho.
 2. Carriage ke tongues ko rails ke **peeche wale end** (jahan pin holes hain) se grooves mein daalo aur aage slide karo.
-3. 1.75 mm filament ke do ~10 mm tukde kaato aur dono pin holes mein daal do. Ab carriage na uth sakta hai, na kisi end se nikal sakta hai.
-4. Saaf karne ke liye: pins kheench lo aur carriage peeche se bahar slide kar lo.
+3. 1.75 mm filament ke do ~11 mm tukde kaato. Cutter se seedha kaato, taaki sira chapta rahe.
+4. Har tukda pin hole mein seedha neeche dabao, jab tak hole ke floor tak na baith jaaye. Ungli se ho jaayega. Tight lage to pliers se pakad ke halka ghuma ke dabao.
+   - Ab carriage na uth sakta hai, na kisi end se nikal sakta hai.
+5. **Pins nikalna:**
+   1. Spreader glass ko slot se upar nikaal lo.
+   2. Carriage ko thoda aage khisakao, taaki pins ke paas jagah ho.
+   3. Pin ka bahar nikla ~5 mm sira ungli, tweezer ya chhote pliers se pakdo.
+   4. Halka ghuma ke seedha upar kheencho.
+   - Phir carriage peeche se bahar slide ho jaayega. Pin dobara use ho sakta hai, ya naya tukda kaat lo, filament sasta hai.
+6. **Agar hole bahut tight print hua** aur pin andar na jaaye:
+   - Ek 1.8 mm drill bit hole mein haath se ghuma do.
+   - Ya filament ke sire ko sandpaper se halka patla kar do.
+   - Agar bahut dheela ho to pin daalne ke baad upar ka sira lighter se halka garam karke L ki shape mein mod do.
 
 ## Use kaise karein
 
