@@ -5,8 +5,8 @@ All dimensions are in mm. Change parameters in PARAMETERS section, then run:
     py -3.14 adapter_model.py
 
 Outputs:
-    phone_base.stl (Base plate + fixed left jaw + camera window + sliding track)
-    clamp_jaw.stl (Sliding right jaw + D-ring pull handle + dovetail tongue)
+    phone_base.stl (Base plate + fixed left jaw + camera window + sliding track rail)
+    clamp_jaw.stl (Sliding right jaw + D-ring pull handle + captive dovetail tongue)
     eyepiece_arm.stl (Vertical slotted bracket + stepped 30mm eyepiece collar)
     thumb_knob.stl (Ergonomic M5 knurled thumb knob with hex nut pocket)
     params.json (Derived dimensions for Three.js interactive 3D viewer)
@@ -49,7 +49,6 @@ M5_HEX_AF = 8.2             # M5 hex nut / bolt head across flats
 M5_HEX_DEPTH = 3.2          # M5 hex head pocket depth
 
 # --- Base Plate ---
-BASE_W = 72.0               # width of phone cradle backplate
 BASE_H = 104.0              # height of phone cradle backplate
 BASE_T = 5.2                # thickness of backplate
 JAW_H = 14.0                # jaw height above phone backplate (Z=0 to Z=14)
@@ -58,7 +57,7 @@ JAW_WALL = 4.5              # jaw outer wall thickness
 
 # --- Track & Tongue (Dovetail-T) ---
 TRACK_Y = -24.0             # Y center of the horizontal clamp track
-TRACK_H = 24.0              # track height in Y
+TRACK_H = 22.0              # track height in Y
 TRACK_DEPTH = 3.2           # track groove depth into base backplate
 TRACK_NECK_W = 10.0         # neck width of dovetail
 TRACK_FLARE = 3.0           # 45 deg flare on each side (total width = 16.0 mm)
@@ -94,23 +93,76 @@ def checks():
     assert ADJUST_Y_TRAVEL >= 25.0, "Y travel too small for camera alignment"
     assert EYEPIECE_ID >= 25.0, "Eyepiece diameter too small for standard microscopes"
     return walls
+    """Right half of track groove (y >= 0 from groove center), z relative to plate top (z=0).
+    c > 0 => tongue: groove shrunk by c (normal clearance on every face)."""
+    neck = TRACK_NECK_W / 2 - c
+    floor = -TRACK_DEPTH + c
+    k = TRACK_NECK_W / 2 - 1.2 - c * SQ2
+    z_flare_top = k - neck
+    y_bottom = k - floor
+    return neck, z_flare_top, floor, y_bottom
+
+
+def mirrored_profile(gy, z0, half, top_extra):
+    """Build full polygon from groove_half_profile, centered on gy."""
+    neck, zft, floor, yb = half
+    right = [(neck, top_extra), (neck, zft), (yb, floor)]
+    pts = right + [(-y, z) for y, z in reversed(right)]
+    return [(gy + y, z0 + z) for y, z in pts]
+    """Verify wall thicknesses and printable tolerances before generation."""
+    walls = {
+        "base floor under dovetail track": BASE_T - TRACK_DEPTH,
+        "eyepiece collar wall": EYEPIECE_WALL,
+        "fixed jaw wall": JAW_WALL,
+        "base plate thickness": BASE_T,
+        "clamping ear thickness": CLAMP_EAR_W,
+        "jaw retention lip": JAW_LIP,
+    }
+    for name, v in walls.items():
+        assert v >= MIN_WALL - 1e-9, f"{name} = {v:.2f} mm < {MIN_WALL}"
+
+    assert 0.15 <= CLR_SLIDE <= 0.6, f"CLR_SLIDE = {CLR_SLIDE} mm is outside printable range 0.15 - 0.6"
+    assert PHONE_W_MAX > PHONE_W_MIN, "Invalid phone width range"
+    assert ADJUST_X_TRAVEL >= 20.0, "X travel too small for camera alignment"
+    assert ADJUST_Y_TRAVEL >= 25.0, "Y travel too small for camera alignment"
+    assert EYEPIECE_ID >= 25.0, "Eyepiece diameter too small for standard microscopes"
+    return walls
+
+
+def groove_half_profile(c=0.0):
+    """Right half of track groove (y >= 0 from groove center), z relative to plate top (z=0).
+    c > 0 => tongue: groove shrunk by c (normal clearance on every face)."""
+    neck = TRACK_NECK_W / 2 - c
+    floor = -TRACK_DEPTH + c
+    k = TRACK_NECK_W / 2 - 1.2 - c * SQ2
+    z_flare_top = k - neck
+    y_bottom = k - floor
+    return neck, z_flare_top, floor, y_bottom
+
+
+def mirrored_profile(gy, z0, half, top_extra):
+    """Build full polygon from groove_half_profile, centered on gy."""
+    neck, zft, floor, yb = half
+    right = [(neck, top_extra), (neck, zft), (yb, floor)]
+    pts = right + [(-y, z) for y, z in reversed(right)]
+    return [(gy + y, z0 + z) for y, z in pts]
 
 
 def make_phone_base():
     """Main phone cradle backplate with fixed left jaw, X-adjustment slot,
-    camera window, and horizontal dovetail-T track for the sliding jaw.
+    large camera window, and horizontal dovetail-T track rail for sliding jaw.
     
     Origin: Z=0 is the front face where the phone back rests.
     Base plate extends from Z = -BASE_T to Z = 0.
-    Rear face at Z = -BASE_T is 100% flat for bed adhesion.
+    Rear face at Z = -BASE_T is flat for bed adhesion.
     """
     jaw_x0 = FIXED_JAW_X - JAW_WALL  # -41.5 mm
     jaw_x1 = FIXED_JAW_X             # -37.0 mm
-    plate_x_max = PHONE_W_NOM / 2    # +37.0 mm
-    total_w = plate_x_max - jaw_x0   # 78.5 mm
+    plate_x_max = 22.0               # base plate extends to X = +22 mm (6 mm wall beyond X slot)
+    total_w = plate_x_max - jaw_x0   # 63.5 mm
     plate_center_x = (jaw_x0 + plate_x_max) / 2
 
-    # 1. Base plate
+    # 1. Base plate body
     base = (cq.Workplane("XY", origin=(plate_center_x, 0, -BASE_T))
             .box(total_w, BASE_H, BASE_T, centered=(True, True, False)))
     base = base.edges("|Z").fillet(3.0)
@@ -131,46 +183,36 @@ def make_phone_base():
            .polyline(lip_pts).close().extrude((BASE_H - 12.0) / 2, both=True))
     base = base.union(jaw_box).union(lip)
 
-    # 3. Camera Viewing Window (upper area)
-    cam_win = (cq.Workplane("XY", origin=(0, 24.0, -BASE_T - 1))
-               .box(40.0, 32.0, BASE_T + JAW_H + 2, centered=(True, True, False)))
-    cam_win = cam_win.edges("|Z").fillet(3.0)
+    # 3. Track Extension Rail (extends to X = +45 mm to guide sliding jaw)
+    rail = (cq.Workplane("XY", origin=(( -28.0 + 45.0 ) / 2, TRACK_Y, -BASE_T))
+            .box(45.0 - (-28.0), TRACK_H, BASE_T, centered=(True, True, False)))
+    base = base.union(rail)
+
+    # 4. Dovetail-T Track Groove
+    track_pts = mirrored_profile(TRACK_Y, 0.0, groove_half_profile(0.0), 0.5)
+    track_solid = (cq.Workplane("YZ", origin=(-28.0, 0, 0))
+                   .polyline(track_pts).close().extrude(45.0 - (-28.0) + 2))
+    base = base.cut(track_solid)
+
+    # 5. Large Camera Viewing Window (Y from 8.0 to 44.0 mm, cleanly inside top edge)
+    cam_win = (cq.Workplane("XY", origin=(0, 26.0, -BASE_T - 1))
+               .box(40.0, 36.0, BASE_T + JAW_H + 2, centered=(True, True, False)))
+    cam_win = cam_win.edges("|Z").fillet(2.5)
     base = base.cut(cam_win)
 
-    # 4. Horizontal X-Adjustment Slot (for M5 lock bolt)
-    slot_y = 0.0
-    slot_len = ADJUST_X_TRAVEL
-    slot_through = (cq.Workplane("XY", origin=(0, slot_y, -BASE_T - 1))
-                    .slot2D(slot_len, SLOT_BOLT_D)
+    # 6. Horizontal X-Adjustment Slot (for M5 lock bolt)
+    slot_through = (cq.Workplane("XY", origin=(0, 0, -BASE_T - 1))
+                    .slot2D(ADJUST_X_TRAVEL, SLOT_BOLT_D)
                     .extrude(BASE_T + 2))
     base = base.cut(slot_through)
 
-    # Front recessed pocket for M5 bolt head (so bolt is flush with Z=0)
-    hex_pocket = (cq.Workplane("XY", origin=(0, slot_y, -M5_HEX_DEPTH))
-                  .slot2D(slot_len + 4.0, M5_HEX_AF + 0.6)
+    # Front recessed pocket for M5 bolt head (so bolt head sits flush with Z=0)
+    hex_pocket = (cq.Workplane("XY", origin=(0, 0, -M5_HEX_DEPTH))
+                  .slot2D(ADJUST_X_TRAVEL + 4.0, M5_HEX_AF + 0.6)
                   .extrude(M5_HEX_DEPTH + 1.0))
     base = base.cut(hex_pocket)
 
-    # 5. Horizontal Dovetail-T Track for Sliding Clamp Jaw
-    track_neck = TRACK_NECK_W
-    track_max_w = TRACK_NECK_W + 2 * TRACK_FLARE
-    z_floor = -BASE_T + TRACK_DEPTH
-    z_neck_top = -BASE_T + 1.2
-
-    track_pts = [
-        (TRACK_Y - track_neck / 2, -BASE_T - 0.5),
-        (TRACK_Y - track_neck / 2, z_neck_top),
-        (TRACK_Y - track_max_w / 2, z_floor),
-        (TRACK_Y + track_max_w / 2, z_floor),
-        (TRACK_Y + track_neck / 2, z_neck_top),
-        (TRACK_Y + track_neck / 2, -BASE_T - 0.5)
-    ]
-    track_len = (plate_x_max + 2) - (-28.0)
-    track_solid = (cq.Workplane("YZ", origin=(-28.0, 0, 0))
-                   .polyline(track_pts).close().extrude(track_len))
-    base = base.cut(track_solid)
-
-    # 6. Elastic band anchor eyelet hole in the lower-left corner (stays flush with bed)
+    # 7. Elastic Band Anchor Eyelet in lower-left corner
     eyelet = (cq.Workplane("XY", origin=(-24.0, -42.0, -BASE_T - 1))
               .circle(2.2).extrude(BASE_T + 2))
     base = base.cut(eyelet)
@@ -183,15 +225,14 @@ def make_clamp_jaw():
     ergonomic D-ring pull handle, and elastic band hook.
     
     Default position: nominal clamp width = 74 mm (inner face at X = +37 mm).
-    Rear face at Z = -BASE_T is flat for bed adhesion.
     """
     nom_x = PHONE_W_NOM / 2  # +37.0 mm (inner contact face of right jaw)
     jaw_len_y = 38.0
     jaw_w_x = JAW_WALL
 
-    # 1. Main Jaw Body (rises from Z = -BASE_T to Z = JAW_H)
-    jaw_body = (cq.Workplane("XY", origin=(nom_x + jaw_w_x / 2, TRACK_Y, -BASE_T))
-                .box(jaw_w_x, jaw_len_y, BASE_T + JAW_H, centered=(True, True, False)))
+    # 1. Main Jaw Body (stands from Z = 0 to Z = JAW_H above track)
+    jaw_body = (cq.Workplane("XY", origin=(nom_x + jaw_w_x / 2, TRACK_Y, 0.0))
+                .box(jaw_w_x, jaw_len_y, JAW_H, centered=(True, True, False)))
 
     # Inward retention lip at Z = JAW_H
     lip_pts = [
@@ -204,21 +245,8 @@ def make_clamp_jaw():
            .polyline(lip_pts).close().extrude(jaw_len_y / 2, both=True))
     jaw = jaw_body.union(lip)
 
-    # 2. Dovetail-T Tongue (shrunk by CLR_SLIDE)
-    c = CLR_SLIDE
-    track_neck = TRACK_NECK_W - 2 * c
-    track_max_w = (TRACK_NECK_W + 2 * TRACK_FLARE) - 2 * c
-    z_floor = -BASE_T + TRACK_DEPTH - c
-    z_neck_top = -BASE_T + 1.2 - c * (SQ2 - 1)
-
-    tongue_pts = [
-        (TRACK_Y - track_neck / 2, -BASE_T + c),
-        (TRACK_Y - track_neck / 2, z_neck_top),
-        (TRACK_Y - track_max_w / 2, z_floor),
-        (TRACK_Y + track_max_w / 2, z_floor),
-        (TRACK_Y + track_neck / 2, z_neck_top),
-        (TRACK_Y + track_neck / 2, -BASE_T + c)
-    ]
+    # 2. Dovetail-T Tongue (hangs down into groove from Z = 0, overlaps jaw body by 0.5 mm)
+    tongue_pts = mirrored_profile(TRACK_Y, 0.0, groove_half_profile(CLR_SLIDE), 0.5)
     tongue_len = 34.0
     tongue = (cq.Workplane("YZ", origin=(nom_x + jaw_w_x - tongue_len, 0, 0))
               .polyline(tongue_pts).close().extrude(tongue_len))
@@ -236,13 +264,13 @@ def make_clamp_jaw():
         (handle_x0 + 7.5, TRACK_Y - 6.0),
         (handle_x0, TRACK_Y - 9.0)
     ]
-    handle = (cq.Workplane("XY", origin=(0, 0, -BASE_T))
+    handle = (cq.Workplane("XY", origin=(0, 0, 0))
               .polyline(handle_pts).close().extrude(BASE_T + 4.0))
     handle = handle.edges("|Z").fillet(1.5)
     jaw = jaw.union(handle)
 
-    # 4. Elastic Band Eyelet Hole through D-handle (for spring / elastic loop)
-    eyelet = (cq.Workplane("XY", origin=(nom_x + 6.0, TRACK_Y, -BASE_T - 1))
+    # 4. Elastic Band Eyelet Hole through D-handle
+    eyelet = (cq.Workplane("XY", origin=(nom_x + 6.0, TRACK_Y, -1))
               .circle(2.2).extrude(BASE_T + 6.0))
     jaw = jaw.cut(eyelet)
 
@@ -337,22 +365,22 @@ def make_thumb_knob():
     hex_nut = (cq.Workplane("XY", origin=(0, 0, knob_h - 4.2))
                .polygon(6, hex_r * 2).extrude(5.0))
     knob = knob.cut(hex_nut)
-    # Chamfer top and bottom edges for smooth tactile grip
     knob = knob.edges(">Z").chamfer(0.8).edges("<Z").chamfer(0.8)
     return knob
 
 
 def verify_stl(path, cad_volume):
     """Re-read exported binary STL and verify printability."""
-    data = Path(path).read_bytes()
+    p = Path(path)
+    data = p.read_bytes()
     n = struct.unpack_from("<I", data, 80)[0]
-    assert len(data) == 84 + 50 * n, f"{path.name}: not a valid binary STL"
+    assert len(data) == 84 + 50 * n, f"{p.name}: not a valid binary STL"
     key = lambda v: tuple(round(c, 4) for c in v)
     edges, vol, zmin, bed_area = Counter(), 0.0, math.inf, 0.0
     for i in range(n):
         f = struct.unpack_from("<12f", data, 84 + 50 * i)
         v = [f[3:6], f[6:9], f[9:12]]
-        ks = [key(p) for p in v]
+        ks = [key(p_) for p_ in v]
         for j in range(3):
             a_, b_ = ks[j], ks[(j + 1) % 3]
             edges[(a_, b_) if a_ < b_ else (b_, a_)] += 1
@@ -362,12 +390,12 @@ def verify_stl(path, cad_volume):
         if max(z1, z2, z3) < 1e-4:   # triangle touching print bed
             bed_area += abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1)) / 2
     bad = sum(1 for c in edges.values() if c != 2)
-    assert bad == 0, f"{path.name}: {bad} non-manifold / open edges"
-    assert vol > 0, f"{path.name}: inverted normals"
+    assert bad == 0, f"{p.name}: {bad} non-manifold / open edges"
+    assert vol > 0, f"{p.name}: inverted normals"
     assert abs(vol - cad_volume) / cad_volume < 0.015, \
-        f"{path.name}: volume {vol:.0f} vs CAD {cad_volume:.0f} mm^3"
-    assert abs(zmin) < 1e-4, f"{path.name}: not sitting on the bed (z min = {zmin:.3f})"
-    assert bed_area > 30, f"{path.name}: only {bed_area:.0f} mm^2 touching the bed"
+        f"{p.name}: volume {vol:.0f} vs CAD {cad_volume:.0f} mm^3"
+    assert abs(zmin) < 1e-4, f"{p.name}: not sitting on the bed (z min = {zmin:.3f})"
+    assert bed_area > 30, f"{p.name}: only {bed_area:.0f} mm^2 touching the bed"
     return n, vol, bed_area
 
 
@@ -379,6 +407,27 @@ def main():
     jaw = make_clamp_jaw()
     arm = make_eyepiece_arm()
     knob = make_thumb_knob()
+
+    # Interference checks across phone clamping travel
+    for w in (PHONE_W_MIN, 68.0, PHONE_W_NOM, 82.0, PHONE_W_MAX):
+        shift_x = w - PHONE_W_NOM
+        j_shifted = jaw.translate((shift_x, 0, 0))
+        inter = base.intersect(j_shifted)
+        v = inter.val().Volume() if inter.vals() else 0.0
+        assert v < 1e-3, f"Interference Base-Jaw at width {w} mm: {v:.4f} mm^3"
+
+    # Interference checks across optical 2-axis travel
+    for ax in (-ADJUST_X_TRAVEL / 2, 0.0, ADJUST_X_TRAVEL / 2):
+        for ay in (-ADJUST_Y_TRAVEL / 2, 0.0, ADJUST_Y_TRAVEL / 2):
+            a_shifted = arm.translate((ax, ay, 0))
+            inter = base.intersect(a_shifted)
+            v = inter.val().Volume() if inter.vals() else 0.0
+            assert v < 1e-3, f"Interference Base-Arm at (X={ax}, Y={ay}): {v:.4f} mm^3"
+
+    # Captive retention check: lifting jaw must collide with base rail
+    lift = CLR_SLIDE * SQ2 + 0.3
+    lift_inter = base.intersect(jaw.translate((0, 0, lift)))
+    assert lift_inter.val().Volume() > 1.0, "Jaw is not captive in dovetail track!"
 
     parts_dict = {
         "phone_base.stl": base,
@@ -409,7 +458,6 @@ def main():
         n, vol, bed = verify_stl(out_path, print_solid.val().Volume())
         print(f"{fname}: {n} triangles, watertight, volume {vol/1000:.2f} cm^3, {bed:.0f} mm^2 on bed")
 
-    # Export params for Three.js viewer
     params = {
         "phone": {
             "wMin": PHONE_W_MIN,
@@ -435,7 +483,7 @@ def main():
             "yMax": ADJUST_Y_TRAVEL / 2
         },
         "base": {
-            "w": BASE_W,
+            "w": 57.5,
             "h": BASE_H,
             "t": BASE_T,
             "jawH": JAW_H,
@@ -446,6 +494,7 @@ def main():
     (OUT / "params.json").write_text(json.dumps(params, indent=2))
     print(f"Generated params.json with 2-axis travel: X +/-{ADJUST_X_TRAVEL/2}mm, Y +/-{ADJUST_Y_TRAVEL/2}mm")
     print(f"Clamping width range: {PHONE_W_MIN} mm -> {PHONE_W_MAX} mm")
+    print("All interference and captive lock checks passed successfully!")
 
 
 if __name__ == "__main__":
