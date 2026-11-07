@@ -1,8 +1,8 @@
-# Open Laboratory 3D Tools
+# DIY Microscopy Tools
 
-A collection of 100% 3D-printable, open-hardware precision laboratory jigs designed in parametric CadQuery.
+A collection of 100% 3D-printable, open-hardware precision laboratory tools designed in parametric CadQuery.
 
-**Live 3D Interactive Web Viewer:** https://tanisheesh.github.io/smear-spreader/
+**Live 3D Interactive Web Viewer:** https://tanisheesh.github.io/diy-microscopy-tools/
 
 ---
 
