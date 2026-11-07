@@ -4,74 +4,116 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14181e">
-<title>Smear Spreader Viewer</title>
+<title>Open Laboratory 3D Tools</title>
 <style>
-  :root { --bg:#eef1f4; --panel:#ffffffeb; --fg:#1d2430; --muted:#5b6575; --accent:#2b6cb0; --line:#d5dbe3; --chip:#f4f6f9; }
+  :root {
+    --bg:#eef1f4; --panel:#ffffffeb; --fg:#1d2430; --muted:#5b6575;
+    --accent:#2b6cb0; --accent-hover:#1f5188; --line:#d5dbe3; --chip:#f4f6f9;
+    --tab-active:#ffffff; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#14181e; --panel:#1f252deb; --fg:#e6ebf1; --muted:#9aa5b4; --accent:#63a4ff; --line:#333c48; --chip:#262d37; }
+    :root {
+      --bg:#14181e; --panel:#1f252deb; --fg:#e6ebf1; --muted:#9aa5b4;
+      --accent:#63a4ff; --accent-hover:#82b6ff; --line:#333c48; --chip:#262d37;
+      --tab-active:#2c3440; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.3);
+    }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
-    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow:hidden; overscroll-behavior:none; }
+  html, body { margin:0; height:100%; width:100%; background:var(--bg); color:var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow:hidden; overscroll-behavior:none; }
   #view { position:fixed; inset:0; }
-  #view canvas { display:block; touch-action:none; }
+  #view canvas { display:block; touch-action:none; width:100%; height:100%; }
 
-  /* ---------- panel: desktop = left card ---------- */
-  #panel { position:fixed; top:16px; left:16px; width:300px; max-height:calc(100dvh - 32px);
+  /* ---------- Top Model Switcher (Floating Pill Tabs) ---------- */
+  #modelTabs {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:100;
+    display:inline-flex; gap:4px; padding:4px; background:var(--panel);
+    border:1px solid var(--line); border-radius:999px; backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px); box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    max-width:calc(100vw - 32px);
+  }
+  .tab-btn {
+    border:none; background:transparent; color:var(--muted); font:inherit; font-weight:500;
+    font-size:13px; padding:7px 16px; border-radius:999px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px; transition:all .18s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--fg); }
+  .tab-btn.active {
+    background:var(--tab-active); color:var(--accent); font-weight:600;
+    box-shadow:var(--tab-active-shadow);
+  }
+
+  /* ---------- Panel: Desktop = Floating Left Card ---------- */
+  #panel {
+    position:fixed; top:72px; left:16px; width:320px; max-height:calc(100dvh - 88px);
     display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
-    border-radius:12px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+    border-radius:14px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 8px 24px rgba(0,0,0,0.06); z-index:5;
+  }
   .head { display:flex; align-items:center; gap:8px; padding:12px 12px 4px 16px; }
   .head .titles { flex:1; min-width:0; }
-  h1 { font-size:16px; margin:0; }
-  .sub { color:var(--muted); font-size:12px; }
+  h1 { font-size:16px; font-weight:600; margin:0; line-height:1.2; }
+  .sub { color:var(--muted); font-size:12px; margin-top:2px; }
   .grab { display:none; }
-  #toggle { flex:none; width:36px; height:36px; padding:0; border-radius:8px; font-size:16px; line-height:1; }
+  #toggle { flex:none; width:34px; height:34px; padding:0; border-radius:8px; font-size:15px; line-height:1; }
   #toggle span { display:inline-block; transition:transform .2s; }
   #panel.collapsed #toggle span { transform:rotate(180deg); }
-  .body { overflow:auto; padding:4px 16px 14px; }
+  .body { overflow-y:auto; overflow-x:hidden; padding:4px 16px 14px; }
   .more { display:block; }
   #panel.collapsed .more { display:none; }
-  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
   .hint-touch { display:none; }
   @media (pointer: coarse) { .hint-touch { display:block; } .hint-mouse { display:none; } }
 
-  input[type=range] { width:100%; height:28px; margin:4px 0 0; accent-color:var(--accent); }
+  .ctrl-row { margin-top:8px; }
+  .ctrl-label { display:flex; justify-content:space-between; font-size:12px; font-weight:500; }
+  input[type=range] { width:100%; height:26px; margin:2px 0 0; accent-color:var(--accent); }
   .val { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
-  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  button, a.btn { font:inherit; min-height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--line);
+  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  button, a.btn {
+    font:inherit; min-height:36px; padding:6px 12px; border-radius:8px; border:1px solid var(--line);
     background:var(--chip); color:var(--fg); cursor:pointer; text-decoration:none;
-    display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:border-color .15s, background .15s;
+  }
   button:hover, a.btn:hover { border-color:var(--accent); }
   button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
 
   #toggles { display:flex; flex-direction:column; gap:2px; }
-  label.part { display:flex; align-items:center; gap:8px; padding:5px 0; cursor:pointer; user-select:none; }
+  label.part { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; user-select:none; }
   label.part input { width:16px; height:16px; margin:0; accent-color:var(--accent); }
   .sw { width:12px; height:12px; border-radius:3px; border:1px solid #0003; flex:none; }
   #err { color:#e04848; display:none; margin-top:8px; font-size:12px; }
 
-  /* ---------- phone landscape / short screens: compact side card ---------- */
-  @media (max-height: 520px) {
-    #panel { top:8px; left:8px; width:250px; max-height:calc(100dvh - 16px); }
-    .head { padding:8px 8px 2px 12px; }
+  /* ---------- Phone Landscape / Short screens: Compact Card ---------- */
+  @media (max-height: 540px) {
+    #modelTabs { top:8px; padding:2px; font-size:11px; }
+    .tab-btn { padding:4px 10px; font-size:11px; }
+    #panel { top:46px; left:8px; width:260px; max-height:calc(100dvh - 54px); }
+    .head { padding:6px 8px 2px 10px; }
     .head .sub { display:none; }
-    h1 { font-size:14px; }
-    .body { padding:2px 12px 10px; }
-    .main .btns button { flex:1 1 0; padding:6px 8px; }
+    h1 { font-size:13px; }
+    .body { padding:2px 10px 8px; }
+    .main .btns button { flex:1 1 0; min-height:32px; padding:4px 6px; font-size:12px; }
   }
 
-  /* ---------- phone portrait: bottom sheet ---------- */
+  /* ---------- Phone Portrait: Bottom Sheet ---------- */
   @media (max-width: 640px) and (orientation: portrait) {
-    #panel { top:auto; left:0; right:0; bottom:0; width:auto; max-height:60dvh;
-      border-radius:16px 16px 0 0; border-width:1px 0 0; box-shadow:0 -6px 24px #0003; }
-    .grab { display:block; width:40px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0; }
-    .head { padding:6px 12px 0 16px; cursor:pointer; }
+    #modelTabs { top:10px; width:calc(100vw - 24px); justify-content:center; }
+    .tab-btn { flex:1; justify-content:center; padding:7px 8px; font-size:12px; }
+    #panel {
+      top:auto; left:0; right:0; bottom:0; width:auto; max-height:60dvh;
+      border-radius:18px 18px 0 0; border-width:1px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,0.15);
+    }
+    .grab { display:block; width:42px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0; }
+    .head { padding:6px 12px 2px 16px; cursor:pointer; }
     h1 { font-size:15px; }
-    .body { padding:2px 16px calc(12px + env(safe-area-inset-bottom)); }
-    .main .btns button { flex:1 1 0; min-height:44px; padding:6px 8px; }
+    .body { padding:2px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .main .btns button { flex:1 1 0; min-height:42px; padding:6px 8px; font-size:13px; }
     #toggles { flex-direction:row; flex-wrap:wrap; gap:6px; }
-    label.part { border:1px solid var(--line); background:var(--chip); border-radius:999px; padding:7px 12px; font-size:13px; }
-    .dl a.btn { flex:1 1 0; min-height:44px; }
+    label.part { border:1px solid var(--line); background:var(--chip); border-radius:999px; padding:6px 12px; font-size:12px; }
+    .dl a.btn { flex:1 1 0; min-height:40px; font-size:12px; }
   }
 </style>
 <script type="importmap">
@@ -84,37 +126,39 @@
 <body>
 <div id="view"></div>
 
+<!-- Top Model Switcher Tabs -->
+<nav id="modelTabs" aria-label="Select 3D Model">
+  <button class="tab-btn active" id="tabSpreader" data-model="spreader">🔬 Smear Spreader</button>
+  <button class="tab-btn" id="tabAdapter" data-model="adapter">📱 Microscope Adapter</button>
+</nav>
+
+<!-- Dynamic Controls Card / Bottom Sheet -->
 <div id="panel">
   <div class="grab"></div>
   <div class="head" id="head">
     <div class="titles">
-      <h1>Blood Smear Spreader</h1>
+      <h1 id="modelTitle">Blood Smear Slide Spreader</h1>
       <div class="sub hint-mouse">Drag = rotate · scroll = zoom · right-drag = pan</div>
       <div class="sub hint-touch">1 finger = rotate · 2 fingers = zoom / pan</div>
     </div>
-    <button id="toggle" aria-expanded="true" aria-label="Show / hide parts and downloads"><span>▾</span></button>
+    <button id="toggle" aria-expanded="true" aria-label="Toggle panel collapse"><span>▾</span></button>
   </div>
 
   <div class="body">
-    <section class="main">
-      <input id="travel" type="range" min="0" max="1000" value="0" aria-label="Carriage position">
-      <div class="val" id="travelVal"></div>
-      <div class="btns">
-        <button id="play">▶ Play</button>
-        <button id="explode">Exploded</button>
-        <button id="reset" aria-label="Reset view">⟲ Reset</button>
-      </div>
-    </section>
+    <section class="main" id="dynamicControls"></section>
+
+    <div class="btns">
+      <button id="play">▶ Play</button>
+      <button id="explode">Exploded</button>
+      <button id="reset" aria-label="Reset 3D camera view">⟲ Reset</button>
+    </div>
 
     <section class="more">
-      <h2>Parts</h2>
+      <h2>Parts & Visibility</h2>
       <div id="toggles"></div>
-      <h2>Download STL</h2>
-      <div class="btns dl">
-        <a class="btn" href="base.stl" download>⬇ base.stl</a>
-        <a class="btn" href="carriage.stl" download>⬇ carriage.stl</a>
-      </div>
-      <div class="sub" style="margin-top:8px">Glass slides are shown for reference only - do not print them.</div>
+      <h2>Download 3D STLs</h2>
+      <div class="btns dl" id="dlButtons"></div>
+      <div class="sub" id="modelNote" style="margin-top:8px"></div>
     </section>
     <div id="err"></div>
   </div>
@@ -129,13 +173,9 @@ THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 const $ = (id) => document.getElementById(id);
 const fail = (m) => { $('err').style.display = 'block'; $('err').textContent = m; };
 const isMobile = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
-const isCompact = () => isMobile() || matchMedia('(max-height: 520px)').matches;
+const isCompact = () => isMobile() || matchMedia('(max-height: 540px)').matches;
 
-let P;
-try { P = await (await fetch('params.json')).json(); }
-catch (e) { fail('Could not load params.json. Open this page through a web server, not via file://.'); throw e; }
-
-// ---------- renderer / scene ----------
+// ---------- Three.js Renderer & Scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -146,105 +186,46 @@ const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 3000
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 40;
-controls.maxDistance = 900;
+controls.maxDistance = 1200;
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-sun.position.set(P.base.L / 2 + 70, -80, 160);
+const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+sun.position.set(100, -100, 180);
 sun.castShadow = true;
 const sm = isMobile() ? 1024 : 2048;
 sun.shadow.mapSize.set(sm, sm);
-Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120 });
-sun.target.position.set(P.base.L / 2, 0, 0);
+Object.assign(sun.shadow.camera, { left: -140, right: 140, top: 140, bottom: -140 });
 scene.add(sun, sun.target);
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.18 }));
-ground.position.set(P.base.L / 2, 0, -0.01);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.position.set(0, 0, -0.01);
 ground.receiveShadow = true;
-const grid = new THREE.GridHelper(300, 30, 0x8899aa, 0x8899aa);
+const grid = new THREE.GridHelper(400, 40, 0x8899aa, 0x8899aa);
 grid.rotation.x = Math.PI / 2;
-grid.position.set(P.base.L / 2, 0, 0);
+grid.position.set(0, 0, 0);
 grid.material.transparent = true; grid.material.opacity = 0.15;
 scene.add(ground, grid);
 
-const plastic = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05 });
-const glassMat = (c) => new THREE.MeshPhysicalMaterial({ color: c, transparent: true, opacity: 0.35,
-  roughness: 0.05, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
-const edges = (mesh, c) => mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),
-  new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.6 })));
+const plastic = (c, r=0.55) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0.05 });
+const glassMat = (c) => new THREE.MeshPhysicalMaterial({ color: c, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
+const metal = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.25, metalness: 0.85 });
+const edges = (mesh, c) => mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.6 })));
 
-// ---------- parts ----------
-const a = THREE.MathUtils.degToRad(P.spreader.angleDeg);
-const S = P.spreader;
-const model = new THREE.Group();          // everything, used for camera framing
-scene.add(model);
+const loader = new STLLoader();
+const loadSTL = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
 
-const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x3d7fd9));
-const carriage = new THREE.Group();       // local x = 0 => glass contact
-const carriageMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xf08a24));
-carriage.add(carriageMesh);
-for (const m of [baseMesh, carriageMesh]) m.castShadow = m.receiveShadow = true;
+// Master container for currently loaded model
+let activeModelGroup = new THREE.Group();
+scene.add(activeModelGroup);
 
-const slide = new THREE.Mesh(new THREE.BoxGeometry(P.slide.L, P.slide.W, P.slide.T), glassMat(0xbfe6ff));
-slide.position.set(P.slide.x0 + P.slide.L / 2, 0, P.slide.topZ - P.slide.T / 2);
-edges(slide, 0x4a8fbf);
+let currentModelKey = 'spreader';
+let animState = { playing: false, playTime: 0, explodeT: 0, explodeTarget: 0 };
+let currentModelUpdater = null;
+let currentModelAnimate = null;
 
-const spreader = new THREE.Mesh(new THREE.BoxGeometry(S.L, S.W, S.T), glassMat(0xa8f0d8));
-spreader.rotation.y = a;                  // box +X -> along the glass, +Z -> glass normal
-const spreaderZ = P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2;
-spreader.position.set(-Math.cos(a) * S.L / 2 + Math.sin(a) * S.T / 2, 0, spreaderZ);
-edges(spreader, 0x2f8f73);
-carriage.add(spreader);
-
-// blood: drop + smear that spreads behind the contact point
-const blood = new THREE.Group();
-const drop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16),
-  new THREE.MeshStandardMaterial({ color: 0x9b0a14, roughness: 0.3 }));
-const { contactMin: cMin, contactMax: cMax } = P.carriage;
-const dropX = cMin - 1.5;
-drop.position.set(dropX, 0, P.slide.topZ);
-const cnv = document.createElement('canvas'); cnv.width = 256; cnv.height = 16;
-const g2 = cnv.getContext('2d');
-const grd = g2.createLinearGradient(0, 0, 256, 0);
-grd.addColorStop(0, 'rgba(150,10,20,0.85)'); grd.addColorStop(0.75, 'rgba(170,20,30,0.45)');
-grd.addColorStop(1, 'rgba(180,30,40,0)');
-g2.fillStyle = grd; g2.fillRect(0, 0, 256, 16);
-const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3),
-  new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cnv), transparent: true, depthWrite: false }));
-smear.position.z = P.slide.topZ + 0.02;
-blood.add(drop, smear);
-
-// retaining pins (1.75 mm filament) - stop the carriage sliding out the back
-const pins = new THREE.Group();
-const pinMat = plastic(0xd8dde4);
-for (const side of [1, -1]) {
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.d / 2, P.pin.d / 2, P.pin.len, 20), pinMat);
-  pin.rotation.x = Math.PI / 2;            // cylinder axis Y -> Z
-  pin.position.set(P.pin.x, side * P.pin.y, P.pin.z0 + P.pin.len / 2);
-  pin.castShadow = true;
-  pins.add(pin);
-}
-
-model.add(baseMesh, carriage, slide, blood, pins);
-
-const parts = {
-  base:     { label: 'Base plate',  obj: baseMesh,     color: '#3d7fd9' },
-  carriage: { label: 'Carriage',    obj: carriageMesh, color: '#f08a24' },
-  slide:    { label: 'Base slide',  obj: slide,        color: '#bfe6ff' },
-  spreader: { label: 'Spreader',    obj: spreader,     color: '#a8f0d8' },
-  pins:     { label: 'Stop pins',   obj: pins,         color: '#d8dde4' },
-  blood:    { label: 'Blood',       obj: blood,        color: '#9b0a14' },
-};
-for (const p of Object.values(parts)) {
-  const l = document.createElement('label'); l.className = 'part';
-  l.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span>${p.label}`;
-  l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
-  $('toggles').appendChild(l);
-}
-
-// ---------- layout: keep the model out from behind the panel ----------
+// ---------- Responsive UI Layout ----------
 const panel = $('panel');
-let free = { w: innerWidth, h: innerHeight };   // unobstructed part of the screen
+let free = { w: innerWidth, h: innerHeight };
 function layout() {
   const W = innerWidth, H = innerHeight;
   renderer.setSize(W, H);
@@ -253,30 +234,20 @@ function layout() {
   const occLeft = isMobile() ? 0 : r.right;
   const occBottom = isMobile() ? Math.max(0, H - r.top) : 0;
   free = { w: W - occLeft, h: H - occBottom };
-  // shift the projection so the scene centre lands in the middle of the free area
   camera.setViewOffset(W, H, -occLeft / 2, occBottom / 2, W, H);
   camera.updateProjectionMatrix();
 }
 
-// Model bounds, including both carriage travel ends (the spreader moves with it)
-function modelBox() {
-  const keep = travel.value, box = new THREE.Box3();
-  for (const v of [0, 1000]) { travel.value = v; applyTravel(); model.updateMatrixWorld(true); box.expandByObject(model); }
-  travel.value = keep; applyTravel();
-  return box;
-}
-
-// Project the 8 box corners to get the exact distance that fits everything in the free area
-function frame() {
-  const box = modelBox();
+function frameCurrentModel() {
+  const box = new THREE.Box3().setFromObject(activeModelGroup);
   const c = box.getCenter(new THREE.Vector3());
-  const dir = new THREE.Vector3(1, -1.35, 1).normalize();     // 3/4 view
+  const dir = new THREE.Vector3(1.1, -1.4, 1.0).normalize();
   const back = dir.clone();
   const right = new THREE.Vector3().crossVectors(THREE.Object3D.DEFAULT_UP, back).normalize();
   const up = new THREE.Vector3().crossVectors(back, right);
   const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  const tv = t * free.h / innerHeight * 0.9;                   // 10% margin
-  const th = t * camera.aspect * free.w / innerWidth * 0.9;
+  const tv = t * free.h / innerHeight * 0.88;
+  const th = t * camera.aspect * free.w / innerWidth * 0.88;
   let dist = 0;
   for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
     const p = new THREE.Vector3(x, y, z).sub(c);
@@ -284,83 +255,413 @@ function frame() {
     dist = Math.max(dist, zc + Math.abs(p.dot(right)) / th, zc + Math.abs(p.dot(up)) / tv);
   }
   controls.target.copy(c);
-  camera.position.copy(c).addScaledVector(dir, dist);
+  camera.position.copy(c).addScaledVector(dir, Math.max(dist, 90));
   controls.update();
 }
 
-// ---------- panel collapse ----------
 const toggleBtn = $('toggle');
 function setCollapsed(c) {
   panel.classList.toggle('collapsed', c);
   toggleBtn.setAttribute('aria-expanded', String(!c));
 }
-setCollapsed(isCompact());  // on phones, start with only the main controls
+setCollapsed(isCompact());
 toggleBtn.onclick = (e) => { e.stopPropagation(); setCollapsed(!panel.classList.contains('collapsed')); };
 $('head').onclick = () => { if (isMobile()) setCollapsed(!panel.classList.contains('collapsed')); };
 new ResizeObserver(layout).observe(panel);
 addEventListener('resize', layout);
 layout();
 
-// ---------- load STLs ----------
-const loader = new STLLoader();
-const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
-try {
-  const [gb, gc] = await Promise.all([load('base.stl'), load('carriage.stl')]);
+// =========================================================================
+// MODEL 1: Blood Smear Slide Spreader
+// =========================================================================
+async function initSpreaderModel() {
+  $('modelTitle').textContent = 'Blood Smear Slide Spreader';
+  $('modelNote').textContent = 'Microscope slides (75 × 25 × 1 mm) shown for reference only.';
+  
+  const res = await fetch('smear-spreader/params.json?v=' + Date.now());
+  const P = await res.json();
+  if (!P || !P.spreader) {
+    throw new Error('Spreader parameters not found in smear-spreader/params.json');
+  }
+  const grp = new THREE.Group();
+  
+  const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x3d7fd9));
+  const carriage = new THREE.Group();
+  const carriageMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xf08a24));
+  carriage.add(carriageMesh);
+  baseMesh.castShadow = baseMesh.receiveShadow = carriageMesh.castShadow = carriageMesh.receiveShadow = true;
+
+  const a = THREE.MathUtils.degToRad(P.spreader.angleDeg);
+  const S = P.spreader;
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(P.slide.L, P.slide.W, P.slide.T), glassMat(0xbfe6ff));
+  slide.position.set(P.slide.x0 + P.slide.L / 2, 0, P.slide.topZ - P.slide.T / 2);
+  edges(slide, 0x4a8fbf);
+
+  const spreader = new THREE.Mesh(new THREE.BoxGeometry(S.L, S.W, S.T), glassMat(0xa8f0d8));
+  spreader.rotation.y = a;
+  const spreaderZ = P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2;
+  spreader.position.set(-Math.cos(a) * S.L / 2 + Math.sin(a) * S.T / 2, 0, spreaderZ);
+  edges(spreader, 0x2f8f73);
+  carriage.add(spreader);
+
+  const blood = new THREE.Group();
+  const drop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshStandardMaterial({ color: 0x9b0a14, roughness: 0.3 }));
+  const { contactMin: cMin, contactMax: cMax } = P.carriage;
+  const dropX = cMin - 1.5;
+  drop.position.set(dropX, 0, P.slide.topZ);
+  
+  const cnv = document.createElement('canvas'); cnv.width = 256; cnv.height = 16;
+  const g2 = cnv.getContext('2d');
+  const grd = g2.createLinearGradient(0, 0, 256, 0);
+  grd.addColorStop(0, 'rgba(150,10,20,0.85)'); grd.addColorStop(0.75, 'rgba(170,20,30,0.45)');
+  grd.addColorStop(1, 'rgba(180,30,40,0)');
+  g2.fillStyle = grd; g2.fillRect(0, 0, 256, 16);
+  const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cnv), transparent: true, depthWrite: false }));
+  smear.position.z = P.slide.topZ + 0.02;
+  blood.add(drop, smear);
+
+  const pins = new THREE.Group();
+  const pinMat = plastic(0xd8dde4);
+  for (const side of [1, -1]) {
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.d / 2, P.pin.d / 2, P.pin.len, 20), pinMat);
+    pin.rotation.x = Math.PI / 2;
+    pin.position.set(P.pin.x, side * P.pin.y, P.pin.z0 + P.pin.len / 2);
+    pin.castShadow = true;
+    pins.add(pin);
+  }
+
+  grp.add(baseMesh, carriage, slide, blood, pins);
+
+  // Load STLs
+  const [gb, gc] = await Promise.all([
+    loadSTL('smear-spreader/base.stl'),
+    loadSTL('smear-spreader/carriage.stl')
+  ]);
   gb.computeVertexNormals(); baseMesh.geometry = gb;
-  // carriage.stl is in print orientation -> transform back to the assembly frame
   const s = P.carriage.printShift;
   gc.translate(-s[0], -s[1], -s[2]);
   gc.rotateX(-THREE.MathUtils.degToRad(P.carriage.printRotXDeg));
   gc.computeVertexNormals(); carriageMesh.geometry = gc;
-} catch (e) { fail('Could not load STL: ' + e.message); }
 
-// ---------- motion + exploded ----------
-const travel = $('travel'), travelVal = $('travelVal'), playBtn = $('play'), explodeBtn = $('explode');
-let explodeT = 0, explodeTarget = 0, playing = false;
+  // Build UI controls
+  $('dynamicControls').innerHTML = `
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Carriage Travel</span><span class="val" id="travelVal">Contact X = 36.3 mm</span></div>
+      <input id="travel" type="range" min="0" max="1000" value="0" aria-label="Carriage position">
+    </div>
+  `;
 
-function applyTravel() {
-  const f = travel.value / 1000;
-  const x = cMin + f * (cMax - cMin);
-  carriage.position.x = x;
-  const len = Math.max(0.01, x - dropX);
-  smear.scale.x = len; smear.position.x = dropX + len / 2;
-  smear.visible = f > 0.002;
-  const k = 2.2 * (1 - 0.6 * f); drop.scale.set(k, k, 0.6 * k / 2.2);
-  travelVal.textContent = `Contact X = ${x.toFixed(1)} mm · smear ${(x - cMin).toFixed(1)} mm`;
+  $('dlButtons').innerHTML = `
+    <a class="btn" href="smear-spreader/base.stl" download>⬇ base.stl</a>
+    <a class="btn" href="smear-spreader/carriage.stl" download>⬇ carriage.stl</a>
+  `;
+
+  // Parts toggles
+  const parts = {
+    base:     { label: 'Base plate',  obj: baseMesh,     color: '#3d7fd9' },
+    carriage: { label: 'Carriage',    obj: carriageMesh, color: '#f08a24' },
+    slide:    { label: 'Base slide',  obj: slide,        color: '#bfe6ff' },
+    spreader: { label: 'Spreader',    obj: spreader,     color: '#a8f0d8' },
+    pins:     { label: 'Stop pins',   obj: pins,         color: '#d8dde4' },
+    blood:    { label: 'Blood',       obj: blood,        color: '#9b0a14' },
+  };
+  $('toggles').innerHTML = '';
+  for (const p of Object.values(parts)) {
+    const l = document.createElement('label'); l.className = 'part';
+    l.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span>${p.label}`;
+    l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
+    $('toggles').appendChild(l);
+  }
+
+  const travel = $('travel');
+  const travelVal = $('travelVal');
+  function applyTravel() {
+    const f = travel.value / 1000;
+    const x = cMin + f * (cMax - cMin);
+    carriage.position.x = x;
+    const len = Math.max(0.01, x - dropX);
+    smear.scale.x = len; smear.position.x = dropX + len / 2;
+    smear.visible = f > 0.002;
+    const k = 2.2 * (1 - 0.6 * f); drop.scale.set(k, k, 0.6 * k / 2.2);
+    travelVal.textContent = `Contact X = ${x.toFixed(1)} mm · smear ${(x - cMin).toFixed(1)} mm`;
+  }
+  travel.oninput = () => { animState.playing = false; $('play').textContent = '▶ Play'; applyTravel(); };
+  applyTravel();
+
+  currentModelUpdater = applyTravel;
+  currentModelAnimate = (dt) => {
+    if (animState.playing) {
+      let v = +travel.value + dt * 250;
+      if (v >= 1000) { v = 1000; animState.playing = false; $('play').textContent = '▶ Play'; }
+      travel.value = v; applyTravel();
+    }
+    const e = animState.explodeT;
+    slide.position.z = P.slide.topZ - P.slide.T / 2 + 10 * e;
+    blood.position.z = 10 * e;
+    carriage.position.z = 30 * e;
+    pins.position.z = 16 * e;
+    spreader.position.z = spreaderZ + 28 * e;
+  };
+
+  return grp;
 }
-const setPlaying = (p) => { playing = p; playBtn.textContent = p ? '❚❚ Pause' : '▶ Play'; };
-travel.oninput = () => { setPlaying(false); applyTravel(); };
-playBtn.onclick = () => { setPlaying(!playing); if (playing && +travel.value >= 1000) travel.value = 0; };
-explodeBtn.onclick = () => {
-  explodeTarget = explodeTarget ? 0 : 1;
-  explodeBtn.classList.toggle('on', !!explodeTarget);
-  explodeBtn.textContent = explodeTarget ? 'Assemble' : 'Exploded';
+
+// =========================================================================
+// MODEL 2: Microscope Phone Adapter
+// =========================================================================
+async function initAdapterModel() {
+  $('modelTitle').textContent = 'Microscope Phone Adapter';
+  $('modelNote').textContent = 'Smartphone and microscope eyepiece barrel shown for optical alignment.';
+  
+  const res = await fetch('microscope-adapter/params.json?v=' + Date.now());
+  const P = await res.json();
+  if (!P || !P.eyepiece) {
+    throw new Error('Adapter parameters not found in microscope-adapter/params.json');
+  }
+  const grp = new THREE.Group();
+
+  const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x2874a6));
+  const jawMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
+  const armMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x27ae60));
+  const knobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
+
+  for (const m of [baseMesh, jawMesh, armMesh, knobMesh]) m.castShadow = m.receiveShadow = true;
+
+  const jawGroup = new THREE.Group(); jawGroup.add(jawMesh);
+  const opticalGroup = new THREE.Group(); opticalGroup.add(armMesh);
+  const knobGroup = new THREE.Group(); knobGroup.add(knobMesh);
+  opticalGroup.add(knobGroup);
+
+  // Phone with stained cells on screen
+  const phoneGroup = new THREE.Group();
+  const phoneBodyMat = new THREE.MeshPhysicalMaterial({ color: 0x1c2833, roughness: 0.2, metalness: 0.8, clearcoat: 0.6 });
+  const phoneMesh = new THREE.Mesh(new THREE.BoxGeometry(P.phone.wNom, P.phone.lRef, 8.2), phoneBodyMat);
+  phoneMesh.position.set(0, 10, 4.1);
+
+  const screenCanvas = document.createElement('canvas'); screenCanvas.width = 512; screenCanvas.height = 1024;
+  const ctx = screenCanvas.getContext('2d');
+  ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 0, 512, 1024);
+  const cx = 256, cy = 460, r = 210;
+  const grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  grad.addColorStop(0, '#aed6f1'); grad.addColorStop(0.8, '#5dade2'); grad.addColorStop(1, '#1b4f72');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+  for (let i = 0; i < 110; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = Math.sqrt(Math.random()) * (r - 18);
+    const bx = cx + Math.cos(ang) * dist;
+    const by = cy + Math.sin(ang) * dist;
+    const cr = 7 + Math.random() * 9;
+    ctx.fillStyle = i % 5 === 0 ? 'rgba(74, 35, 90, 0.85)' : 'rgba(142, 68, 173, 0.65)';
+    ctx.beginPath(); ctx.arc(bx, by, cr, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#ffffff'; ctx.font = '24px sans-serif'; ctx.fillText('Microscope View (400x)', 140, 180);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '18px sans-serif'; ctx.fillText('Sample: Blood Smear Stained', 140, 215);
+
+  const screenTex = new THREE.CanvasTexture(screenCanvas);
+  const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(P.phone.wNom - 4, P.phone.lRef - 16), new THREE.MeshBasicMaterial({ map: screenTex }));
+  screenMesh.position.set(0, 10, 8.25);
+  phoneGroup.add(phoneMesh, screenMesh);
+
+  const camBump = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.8, 32), metal(0x2c3e50));
+  camBump.rotation.x = Math.PI / 2; camBump.position.set(0, P.eyepiece.centerNomY, -0.9);
+  phoneGroup.add(camBump);
+
+  // Microscope Eyepiece Tube
+  const eyepieceGroup = new THREE.Group();
+  const epBarrel = new THREE.Mesh(new THREE.CylinderGeometry(P.eyepiece.id / 2 - 0.2, P.eyepiece.id / 2 - 0.2, 45, 32), metal(0x34495e));
+  epBarrel.rotation.x = Math.PI / 2; epBarrel.position.set(0, 0, -22.5);
+  const epLens = new THREE.Mesh(new THREE.CircleGeometry(11, 32), new THREE.MeshPhysicalMaterial({ color: 0x5dade2, transparent: true, opacity: 0.6, roughness: 0.1 }));
+  epLens.position.set(0, 0, 0);
+  eyepieceGroup.add(epBarrel, epLens);
+  opticalGroup.add(eyepieceGroup);
+
+  grp.add(baseMesh, jawGroup, opticalGroup, phoneGroup);
+
+  // Load STLs
+  const [gb, gj, ga, gk] = await Promise.all([
+    loadSTL('microscope-adapter/phone_base.stl'),
+    loadSTL('microscope-adapter/clamp_jaw.stl'),
+    loadSTL('microscope-adapter/eyepiece_arm.stl'),
+    loadSTL('microscope-adapter/thumb_knob.stl')
+  ]);
+
+  const tf = P.transforms;
+  gb.translate(-tf['phone_base.stl'].printShift[0], -tf['phone_base.stl'].printShift[1], -tf['phone_base.stl'].printShift[2]);
+  gb.computeVertexNormals(); baseMesh.geometry = gb;
+
+  gj.translate(-tf['clamp_jaw.stl'].printShift[0], -tf['clamp_jaw.stl'].printShift[1], -tf['clamp_jaw.stl'].printShift[2]);
+  gj.computeVertexNormals(); jawMesh.geometry = gj;
+
+  ga.translate(-tf['eyepiece_arm.stl'].printShift[0], -tf['eyepiece_arm.stl'].printShift[1], -tf['eyepiece_arm.stl'].printShift[2]);
+  if (tf['eyepiece_arm.stl'].rotX) ga.rotateX(-THREE.MathUtils.degToRad(tf['eyepiece_arm.stl'].rotX));
+  ga.computeVertexNormals(); armMesh.geometry = ga;
+
+  gk.translate(-tf['thumb_knob.stl'].printShift[0], -tf['thumb_knob.stl'].printShift[1], -tf['thumb_knob.stl'].printShift[2]);
+  gk.computeVertexNormals(); knobMesh.geometry = gk;
+  knobMesh.position.set(0, 0, -P.base.t - 4.8 - 8.5);
+
+  eyepieceGroup.position.set(0, P.eyepiece.centerNomY, -P.base.t - 4.8 - P.eyepiece.len);
+
+  // Build UI controls
+  $('dynamicControls').innerHTML = `
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Phone Width Clamp</span><span class="val" id="clampVal">74.0 mm</span></div>
+      <input id="clampSlide" type="range" min="60" max="92" step="0.5" value="74">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Camera X Alignment</span><span class="val" id="camXVal">0.0 mm</span></div>
+      <input id="camXSlide" type="range" min="-16" max="16" step="0.5" value="0">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">0.0 mm</span></div>
+      <input id="camYSlide" type="range" min="-21" max="21" step="0.5" value="0">
+    </div>
+  `;
+
+  $('dlButtons').innerHTML = `
+    <a class="btn" href="microscope-adapter/phone_base.stl" download>⬇ phone_base.stl</a>
+    <a class="btn" href="microscope-adapter/clamp_jaw.stl" download>⬇ clamp_jaw.stl</a>
+    <a class="btn" href="microscope-adapter/eyepiece_arm.stl" download>⬇ eyepiece_arm.stl</a>
+    <a class="btn" href="microscope-adapter/thumb_knob.stl" download>⬇ thumb_knob.stl</a>
+  `;
+
+  const parts = {
+    base:     { label: 'Base Plate',    obj: baseMesh,      color: '#2874a6' },
+    jaw:      { label: 'Sliding Jaw',   obj: jawGroup,      color: '#e67e22' },
+    arm:      { label: 'Eyepiece Arm',  obj: armMesh,       color: '#27ae60' },
+    knob:     { label: 'Lock Knob',     obj: knobGroup,     color: '#8e44ad' },
+    phone:    { label: 'Smartphone',    obj: phoneGroup,    color: '#34495e' },
+    eyepiece: { label: 'Microscope EP', obj: eyepieceGroup, color: '#95a5a6' }
+  };
+  $('toggles').innerHTML = '';
+  for (const p of Object.values(parts)) {
+    const l = document.createElement('label'); l.className = 'part';
+    l.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span>${p.label}`;
+    l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
+    $('toggles').appendChild(l);
+  }
+
+  const clampSlide = $('clampSlide'), clampVal = $('clampVal');
+  const camXSlide = $('camXSlide'), camXVal = $('camXVal');
+  const camYSlide = $('camYSlide'), camYVal = $('camYVal');
+
+  function updateAdapterPositions() {
+    const w = parseFloat(clampSlide.value);
+    const cx = parseFloat(camXSlide.value);
+    const cy = parseFloat(camYSlide.value);
+
+    clampVal.textContent = w.toFixed(1) + ' mm';
+    camXVal.textContent = (cx >= 0 ? '+' : '') + cx.toFixed(1) + ' mm';
+    camYVal.textContent = (cy >= 0 ? '+' : '') + cy.toFixed(1) + ' mm';
+
+    const jawShiftX = w - P.phone.wNom;
+    jawGroup.position.x = jawShiftX;
+    phoneGroup.scale.x = w / P.phone.wNom;
+    phoneGroup.position.x = jawShiftX / 2;
+    opticalGroup.position.set(cx, cy, 0);
+  }
+
+  clampSlide.oninput = () => { animState.playing = false; $('play').textContent = '▶ Play'; updateAdapterPositions(); };
+  camXSlide.oninput = () => { animState.playing = false; $('play').textContent = '▶ Play'; updateAdapterPositions(); };
+  camYSlide.oninput = () => { animState.playing = false; $('play').textContent = '▶ Play'; updateAdapterPositions(); };
+  updateAdapterPositions();
+
+  currentModelUpdater = updateAdapterPositions;
+  currentModelAnimate = (dt) => {
+    if (animState.playing) {
+      animState.playTime += dt * 1.5;
+      clampSlide.value = 74 + Math.sin(animState.playTime * 0.8) * 12;
+      camXSlide.value = Math.sin(animState.playTime * 1.2) * 14;
+      camYSlide.value = Math.cos(animState.playTime * 1.0) * 16;
+      updateAdapterPositions();
+    }
+    const e = animState.explodeT;
+    phoneGroup.position.z = 24 * e;
+    jawGroup.position.x = (parseFloat(clampSlide.value) - P.phone.wNom) + 28 * e;
+    opticalGroup.position.z = -32 * e;
+    knobGroup.position.z = -22 * e;
+    eyepieceGroup.position.z = (-P.base.t - 4.8 - P.eyepiece.len) - 30 * e;
+  };
+
+  return grp;
+}
+
+// =========================================================================
+// Model Switcher Logic (Hash Routing & Dynamic Swapping)
+// =========================================================================
+async function switchModel(key) {
+  currentModelKey = key;
+  $('err').style.display = 'none';
+  animState.playing = false;
+  $('play').textContent = '▶ Play';
+  animState.explodeTarget = 0; animState.explodeT = 0;
+  $('explode').classList.remove('on');
+  $('explode').textContent = 'Exploded';
+
+  $('tabSpreader').classList.toggle('active', key === 'spreader');
+  $('tabAdapter').classList.toggle('active', key === 'adapter');
+  location.hash = key;
+
+  // Clear previous 3D model
+  while (activeModelGroup.children.length > 0) {
+    const obj = activeModelGroup.children[0];
+    activeModelGroup.remove(obj);
+  }
+
+  try {
+    let newGroup;
+    if (key === 'adapter') {
+      newGroup = await initAdapterModel();
+    } else {
+      newGroup = await initSpreaderModel();
+    }
+    activeModelGroup.add(newGroup);
+    layout();
+    frameCurrentModel();
+  } catch (e) {
+    fail('Could not load model: ' + e.message);
+  }
+}
+
+$('tabSpreader').onclick = () => switchModel('spreader');
+$('tabAdapter').onclick = () => switchModel('adapter');
+
+// Global Buttons
+$('play').onclick = () => {
+  animState.playing = !animState.playing;
+  $('play').textContent = animState.playing ? '❚❚ Pause' : '▶ Play';
+  if (currentModelKey === 'spreader' && animState.playing && +$('travel').value >= 1000) {
+    $('travel').value = 0;
+    if (currentModelUpdater) currentModelUpdater();
+  }
 };
-$('reset').onclick = () => { layout(); frame(); };
 
-applyTravel();
-frame();
-// refit when the phone is rotated
-matchMedia('(orientation: portrait)').addEventListener('change', () => setTimeout(() => { layout(); frame(); }, 150));
+$('explode').onclick = () => {
+  animState.explodeTarget = animState.explodeTarget ? 0 : 1;
+  $('explode').classList.toggle('on', !!animState.explodeTarget);
+  $('explode').textContent = animState.explodeTarget ? 'Assemble' : 'Exploded';
+};
 
+$('reset').onclick = () => { layout(); frameCurrentModel(); };
+
+// Initial routing check based on URL hash
+const initialKey = location.hash === '#adapter' ? 'adapter' : 'spreader';
+await switchModel(initialKey);
+
+// Animation Loop
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (playing) {
-    let v = +travel.value + dt * 250;
-    if (v >= 1000) { v = 1000; setPlaying(false); }
-    travel.value = v; applyTravel();
-  }
-  explodeT += (explodeTarget - explodeT) * Math.min(1, dt * 6);
-  const e = explodeT;
-  slide.position.z = P.slide.topZ - P.slide.T / 2 + 10 * e;
-  blood.position.z = 10 * e;
-  carriage.position.z = 30 * e;
-  pins.position.z = 16 * e;
-  spreader.position.z = spreaderZ + 28 * e;
+  animState.explodeT += (animState.explodeTarget - animState.explodeT) * Math.min(1, dt * 6);
+  if (currentModelAnimate) currentModelAnimate(dt);
   controls.update();
   renderer.render(scene, camera);
 });
+
+// Refit on mobile orientation change
+matchMedia('(orientation: portrait)').addEventListener('change', () => setTimeout(() => { layout(); frameCurrentModel(); }, 150));
 </script>
 </body>
 </html>

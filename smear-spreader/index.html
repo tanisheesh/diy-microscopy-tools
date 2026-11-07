@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14181e">
+<title>Blood Smear Slide Spreader Viewer</title>
+<style>
+  :root {
+    --bg:#eef1f4; --panel:#ffffffeb; --fg:#1d2430; --muted:#5b6575;
+    --accent:#2b6cb0; --accent-hover:#1f5188; --line:#d5dbe3; --chip:#f4f6f9;
+    --tab-active:#ffffff; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14181e; --panel:#1f252deb; --fg:#e6ebf1; --muted:#9aa5b4;
+      --accent:#63a4ff; --accent-hover:#82b6ff; --line:#333c48; --chip:#262d37;
+      --tab-active:#2c3440; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; width:100%; background:var(--bg); color:var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow:hidden; overscroll-behavior:none; }
+  #view { position:fixed; inset:0; }
+  #view canvas { display:block; touch-action:none; width:100%; height:100%; }
+
+  /* ---------- Top Model Switcher (Floating Pill Tabs) ---------- */
+  #modelTabs {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:100;
+    display:inline-flex; gap:4px; padding:4px; background:var(--panel);
+    border:1px solid var(--line); border-radius:999px; backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px); box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    max-width:calc(100vw - 32px);
+  }
+  .tab-btn {
+    border:none; background:transparent; color:var(--muted); font:inherit; font-weight:500;
+    font-size:13px; padding:7px 16px; border-radius:999px; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all .18s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--fg); }
+  .tab-btn.active {
+    background:var(--tab-active); color:var(--accent); font-weight:600;
+    box-shadow:var(--tab-active-shadow);
+  }
+
+  /* ---------- Panel: Desktop = Floating Left Card ---------- */
+  #panel {
+    position:fixed; top:72px; left:16px; width:320px; max-height:calc(100dvh - 88px);
+    display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 8px 24px rgba(0,0,0,0.06); z-index:50;
+  }
+  .head { display:flex; align-items:center; gap:8px; padding:12px 12px 4px 16px; }
+  .head .titles { flex:1; min-width:0; }
+  h1 { font-size:16px; font-weight:600; margin:0; line-height:1.2; }
+  .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  .grab { display:none; }
+  #toggle { flex:none; width:34px; height:34px; padding:0; border-radius:8px; font-size:15px; line-height:1; }
+  #toggle span { display:inline-block; transition:transform .2s; }
+  #panel.collapsed #toggle span { transform:rotate(180deg); }
+  .body { overflow-y:auto; overflow-x:hidden; padding:4px 16px 14px; }
+  .more { display:block; }
+  #panel.collapsed .more { display:none; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
+  .hint-touch { display:none; }
+  @media (pointer: coarse) { .hint-touch { display:block; } .hint-mouse { display:none; } }
+
+  .ctrl-row { margin-top:8px; }
+  .ctrl-label { display:flex; justify-content:space-between; font-size:12px; font-weight:500; }
+  input[type=range] { width:100%; height:26px; margin:2px 0 0; accent-color:var(--accent); }
+  .val { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  button, a.btn {
+    font:inherit; min-height:36px; padding:6px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--chip); color:var(--fg); cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:border-color .15s, background .15s;
+  }
+  button:hover, a.btn:hover { border-color:var(--accent); }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  #toggles { display:flex; flex-direction:column; gap:2px; }
+  label.part { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; user-select:none; }
+  label.part input { width:16px; height:16px; margin:0; accent-color:var(--accent); }
+  .sw { width:12px; height:12px; border-radius:3px; border:1px solid #0003; flex:none; }
+  #err { color:#e04848; display:none; margin-top:8px; font-size:12px; }
+
+  /* ---------- Phone Landscape / Short screens: Compact Card ---------- */
+  @media (max-height: 540px) {
+    #modelTabs { top:8px; padding:2px; font-size:11px; }
+    .tab-btn { padding:4px 10px; font-size:11px; }
+    #panel { top:46px; left:8px; width:260px; max-height:calc(100dvh - 54px); }
+    .head { padding:6px 8px 2px 10px; }
+    .head .sub { display:none; }
+    h1 { font-size:13px; }
+    .body { padding:2px 10px 8px; }
+    .main .btns button { flex:1 1 0; min-height:32px; padding:4px 6px; font-size:12px; }
+  }
+
+  /* ---------- Phone Portrait: Bottom Sheet ---------- */
+  @media (max-width: 640px) and (orientation: portrait) {
+    #modelTabs { top:10px; width:calc(100vw - 24px); justify-content:center; }
+    .tab-btn { flex:1; justify-content:center; padding:7px 8px; font-size:12px; }
+    #panel {
+      top:auto; left:0; right:0; bottom:0; width:auto; max-height:60dvh;
+      border-radius:18px 18px 0 0; border-width:1px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,0.15);
+    }
+    .grab { display:block; width:42px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0; }
+    .head { padding:6px 12px 2px 16px; cursor:pointer; }
+    h1 { font-size:15px; }
+    .body { padding:2px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .main .btns button { flex:1 1 0; min-height:42px; padding:6px 8px; font-size:13px; }
+    #toggles { flex-direction:row; flex-wrap:wrap; gap:6px; }
+    label.part { border:1px solid var(--line); background:var(--chip); border-radius:999px; padding:6px 12px; font-size:12px; }
+    .dl a.btn { flex:1 1 0; min-height:40px; font-size:12px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="view"></div>
+
+<!-- Top Navigation Tabs -->
+<nav id="modelTabs" aria-label="Select 3D Model">
+  <span class="tab-btn active">🔬 Smear Spreader</span>
+  <a class="tab-btn" href="../microscope-adapter/">📱 Microscope Adapter</a>
+</nav>
+
+<!-- Controls Card / Bottom Sheet -->
+<div id="panel">
+  <div class="grab"></div>
+  <div class="head" id="head">
+    <div class="titles">
+      <h1>Blood Smear Slide Spreader</h1>
+      <div class="sub hint-mouse">Drag = rotate · scroll = zoom · right-drag = pan</div>
+      <div class="sub hint-touch">1 finger = rotate · 2 fingers = zoom / pan</div>
+    </div>
+    <button id="toggle" aria-expanded="true" aria-label="Toggle panel collapse"><span>▾</span></button>
+  </div>
+
+  <div class="body">
+    <section class="main">
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Carriage Travel</span><span class="val" id="travelVal">Contact X = 36.3 mm</span></div>
+        <input id="travel" type="range" min="0" max="1000" value="0" aria-label="Carriage position">
+      </div>
+
+      <div class="btns">
+        <button id="play">▶ Play</button>
+        <button id="explode">Exploded</button>
+        <button id="reset" aria-label="Reset 3D camera view">⟲ Reset</button>
+      </div>
+    </section>
+
+    <section class="more">
+      <h2>Parts & Visibility</h2>
+      <div id="toggles"></div>
+      <h2>Download 3D STLs</h2>
+      <div class="btns dl">
+        <a class="btn" href="base.stl" download>⬇ base.stl</a>
+        <a class="btn" href="carriage.stl" download>⬇ carriage.stl</a>
+      </div>
+      <div class="sub" style="margin-top:8px">Glass microscope slides shown for reference only.</div>
+    </section>
+    <div id="err"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+const $ = (id) => document.getElementById(id);
+const fail = (m) => { $('err').style.display = 'block'; $('err').textContent = m; };
+const isMobile = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+const isCompact = () => isMobile() || matchMedia('(max-height: 540px)').matches;
+
+let P;
+try {
+  const res = await fetch('params.json?v=' + Date.now());
+  P = await res.json();
+} catch (e) {
+  fail('Could not load params.json. Open this page through a web server, not via file://.');
+  throw e;
+}
+
+// ---------- Three.js Renderer & Scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+$('view').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 40;
+controls.maxDistance = 1200;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+sun.position.set(P.base.L / 2 + 70, -80, 160);
+sun.castShadow = true;
+const sm = isMobile() ? 1024 : 2048;
+sun.shadow.mapSize.set(sm, sm);
+Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120 });
+sun.target.position.set(P.base.L / 2, 0, 0);
+scene.add(sun, sun.target);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.position.set(P.base.L / 2, 0, -0.01);
+ground.receiveShadow = true;
+const grid = new THREE.GridHelper(300, 30, 0x8899aa, 0x8899aa);
+grid.rotation.x = Math.PI / 2;
+grid.position.set(P.base.L / 2, 0, 0);
+grid.material.transparent = true; grid.material.opacity = 0.15;
+scene.add(ground, grid);
+
+const plastic = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05 });
+const glassMat = (c) => new THREE.MeshPhysicalMaterial({ color: c, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
+const edges = (mesh, c) => mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.6 })));
+
+// ---------- Parts Setup ----------
+const a = THREE.MathUtils.degToRad(P.spreader.angleDeg);
+const S = P.spreader;
+const model = new THREE.Group();
+scene.add(model);
+
+const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x3d7fd9));
+const carriage = new THREE.Group();
+const carriageMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xf08a24));
+carriage.add(carriageMesh);
+baseMesh.castShadow = baseMesh.receiveShadow = carriageMesh.castShadow = carriageMesh.receiveShadow = true;
+
+const slide = new THREE.Mesh(new THREE.BoxGeometry(P.slide.L, P.slide.W, P.slide.T), glassMat(0xbfe6ff));
+slide.position.set(P.slide.x0 + P.slide.L / 2, 0, P.slide.topZ - P.slide.T / 2);
+edges(slide, 0x4a8fbf);
+
+const spreader = new THREE.Mesh(new THREE.BoxGeometry(S.L, S.W, S.T), glassMat(0xa8f0d8));
+spreader.rotation.y = a;
+const spreaderZ = P.slide.topZ + Math.sin(a) * S.L / 2 + Math.cos(a) * S.T / 2;
+spreader.position.set(-Math.cos(a) * S.L / 2 + Math.sin(a) * S.T / 2, 0, spreaderZ);
+edges(spreader, 0x2f8f73);
+carriage.add(spreader);
+
+const blood = new THREE.Group();
+const drop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshStandardMaterial({ color: 0x9b0a14, roughness: 0.3 }));
+const { contactMin: cMin, contactMax: cMax } = P.carriage;
+const dropX = cMin - 1.5;
+drop.position.set(dropX, 0, P.slide.topZ);
+
+const cnv = document.createElement('canvas'); cnv.width = 256; cnv.height = 16;
+const g2 = cnv.getContext('2d');
+const grd = g2.createLinearGradient(0, 0, 256, 0);
+grd.addColorStop(0, 'rgba(150,10,20,0.85)'); grd.addColorStop(0.75, 'rgba(170,20,30,0.45)');
+grd.addColorStop(1, 'rgba(180,30,40,0)');
+g2.fillStyle = grd; g2.fillRect(0, 0, 256, 16);
+const smear = new THREE.Mesh(new THREE.PlaneGeometry(1, S.W - 3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cnv), transparent: true, depthWrite: false }));
+smear.position.z = P.slide.topZ + 0.02;
+blood.add(drop, smear);
+
+const pins = new THREE.Group();
+const pinMat = plastic(0xd8dde4);
+for (const side of [1, -1]) {
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.d / 2, P.pin.d / 2, P.pin.len, 20), pinMat);
+  pin.rotation.x = Math.PI / 2;
+  pin.position.set(P.pin.x, side * P.pin.y, P.pin.z0 + P.pin.len / 2);
+  pin.castShadow = true;
+  pins.add(pin);
+}
+
+model.add(baseMesh, carriage, slide, blood, pins);
+
+const parts = {
+  base:     { label: 'Base plate',  obj: baseMesh,     color: '#3d7fd9' },
+  carriage: { label: 'Carriage',    obj: carriageMesh, color: '#f08a24' },
+  slide:    { label: 'Base slide',  obj: slide,        color: '#bfe6ff' },
+  spreader: { label: 'Spreader',    obj: spreader,     color: '#a8f0d8' },
+  pins:     { label: 'Stop pins',   obj: pins,         color: '#d8dde4' },
+  blood:    { label: 'Blood',       obj: blood,        color: '#9b0a14' },
+};
+for (const p of Object.values(parts)) {
+  const l = document.createElement('label'); l.className = 'part';
+  l.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span>${p.label}`;
+  l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
+  $('toggles').appendChild(l);
+}
+
+// ---------- Responsive Layout & Framing ----------
+const panel = $('panel');
+let free = { w: innerWidth, h: innerHeight };
+function layout() {
+  const W = innerWidth, H = innerHeight;
+  renderer.setSize(W, H);
+  camera.aspect = W / H;
+  const r = panel.getBoundingClientRect();
+  const occLeft = isMobile() ? 0 : r.right;
+  const occBottom = isMobile() ? Math.max(0, H - r.top) : 0;
+  free = { w: W - occLeft, h: H - occBottom };
+  camera.setViewOffset(W, H, -occLeft / 2, occBottom / 2, W, H);
+  camera.updateProjectionMatrix();
+}
+
+function frame() {
+  const box = new THREE.Box3().setFromObject(model);
+  const c = box.getCenter(new THREE.Vector3());
+  const dir = new THREE.Vector3(1, -1.35, 1).normalize();
+  const back = dir.clone();
+  const right = new THREE.Vector3().crossVectors(THREE.Object3D.DEFAULT_UP, back).normalize();
+  const up = new THREE.Vector3().crossVectors(back, right);
+  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const tv = t * free.h / innerHeight * 0.9;
+  const th = t * camera.aspect * free.w / innerWidth * 0.9;
+  let dist = 0;
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+    const p = new THREE.Vector3(x, y, z).sub(c);
+    const zc = p.dot(back);
+    dist = Math.max(dist, zc + Math.abs(p.dot(right)) / th, zc + Math.abs(p.dot(up)) / tv);
+  }
+  controls.target.copy(c);
+  camera.position.copy(c).addScaledVector(dir, dist);
+  controls.update();
+}
+
+const toggleBtn = $('toggle');
+function setCollapsed(c) {
+  panel.classList.toggle('collapsed', c);
+  toggleBtn.setAttribute('aria-expanded', String(!c));
+}
+setCollapsed(isCompact());
+toggleBtn.onclick = (e) => { e.stopPropagation(); setCollapsed(!panel.classList.contains('collapsed')); };
+$('head').onclick = () => { if (isMobile()) setCollapsed(!panel.classList.contains('collapsed')); };
+new ResizeObserver(layout).observe(panel);
+addEventListener('resize', layout);
+layout();
+
+// ---------- Load STLs ----------
+const loader = new STLLoader();
+const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+try {
+  const [gb, gc] = await Promise.all([load('base.stl'), load('carriage.stl')]);
+  gb.computeVertexNormals(); baseMesh.geometry = gb;
+  const s = P.carriage.printShift;
+  gc.translate(-s[0], -s[1], -s[2]);
+  gc.rotateX(-THREE.MathUtils.degToRad(P.carriage.printRotXDeg));
+  gc.computeVertexNormals(); carriageMesh.geometry = gc;
+} catch (e) { fail('Could not load STL: ' + e.message); }
+
+// ---------- Motion & Exploded ----------
+const travel = $('travel'), travelVal = $('travelVal'), playBtn = $('play'), explodeBtn = $('explode');
+let explodeT = 0, explodeTarget = 0, playing = false;
+
+function applyTravel() {
+  const f = travel.value / 1000;
+  const x = cMin + f * (cMax - cMin);
+  carriage.position.x = x;
+  const len = Math.max(0.01, x - dropX);
+  smear.scale.x = len; smear.position.x = dropX + len / 2;
+  smear.visible = f > 0.002;
+  const k = 2.2 * (1 - 0.6 * f); drop.scale.set(k, k, 0.6 * k / 2.2);
+  travelVal.textContent = `Contact X = ${x.toFixed(1)} mm · smear ${(x - cMin).toFixed(1)} mm`;
+}
+const setPlaying = (p) => { playing = p; playBtn.textContent = p ? '❚❚ Pause' : '▶ Play'; };
+travel.oninput = () => { setPlaying(false); applyTravel(); };
+playBtn.onclick = () => { setPlaying(!playing); if (playing && +travel.value >= 1000) travel.value = 0; };
+explodeBtn.onclick = () => {
+  explodeTarget = explodeTarget ? 0 : 1;
+  explodeBtn.classList.toggle('on', !!explodeTarget);
+  explodeBtn.textContent = explodeTarget ? 'Assemble' : 'Exploded';
+};
+$('reset').onclick = () => { layout(); frame(); };
+
+applyTravel();
+frame();
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (playing) {
+    let v = +travel.value + dt * 250;
+    if (v >= 1000) { v = 1000; setPlaying(false); }
+    travel.value = v; applyTravel();
+  }
+  explodeT += (explodeTarget - explodeT) * Math.min(1, dt * 6);
+  const e = explodeT;
+  slide.position.z = P.slide.topZ - P.slide.T / 2 + 10 * e;
+  blood.position.z = 10 * e;
+  carriage.position.z = 30 * e;
+  pins.position.z = 16 * e;
+  spreader.position.z = spreaderZ + 28 * e;
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+matchMedia('(orientation: portrait)').addEventListener('change', () => setTimeout(() => { layout(); frame(); }, 150));
+</script>
+</body>
+</html>

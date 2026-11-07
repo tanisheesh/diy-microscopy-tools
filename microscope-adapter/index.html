@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14181e">
+<title>Smartphone Microscope Adapter Viewer</title>
+<style>
+  :root {
+    --bg:#eef1f4; --panel:#ffffffeb; --fg:#1d2430; --muted:#5b6575;
+    --accent:#2b6cb0; --accent-hover:#1f5188; --line:#d5dbe3; --chip:#f4f6f9;
+    --tab-active:#ffffff; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14181e; --panel:#1f252deb; --fg:#e6ebf1; --muted:#9aa5b4;
+      --accent:#63a4ff; --accent-hover:#82b6ff; --line:#333c48; --chip:#262d37;
+      --tab-active:#2c3440; --tab-active-shadow:0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; width:100%; background:var(--bg); color:var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow:hidden; overscroll-behavior:none; }
+  #view { position:fixed; inset:0; }
+  #view canvas { display:block; touch-action:none; width:100%; height:100%; }
+
+  /* ---------- Top Model Switcher (Floating Pill Tabs) ---------- */
+  #modelTabs {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:100;
+    display:inline-flex; gap:4px; padding:4px; background:var(--panel);
+    border:1px solid var(--line); border-radius:999px; backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px); box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    max-width:calc(100vw - 32px);
+  }
+  .tab-btn {
+    border:none; background:transparent; color:var(--muted); font:inherit; font-weight:500;
+    font-size:13px; padding:7px 16px; border-radius:999px; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all .18s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--fg); }
+  .tab-btn.active {
+    background:var(--tab-active); color:var(--accent); font-weight:600;
+    box-shadow:var(--tab-active-shadow);
+  }
+
+  /* ---------- Panel: Desktop = Floating Left Card ---------- */
+  #panel {
+    position:fixed; top:72px; left:16px; width:320px; max-height:calc(100dvh - 88px);
+    display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 8px 24px rgba(0,0,0,0.06); z-index:50;
+  }
+  .head { display:flex; align-items:center; gap:8px; padding:12px 12px 4px 16px; }
+  .head .titles { flex:1; min-width:0; }
+  h1 { font-size:16px; font-weight:600; margin:0; line-height:1.2; }
+  .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  .grab { display:none; }
+  #toggle { flex:none; width:34px; height:34px; padding:0; border-radius:8px; font-size:15px; line-height:1; }
+  #toggle span { display:inline-block; transition:transform .2s; }
+  #panel.collapsed #toggle span { transform:rotate(180deg); }
+  .body { overflow-y:auto; overflow-x:hidden; padding:4px 16px 14px; }
+  .more { display:block; }
+  #panel.collapsed .more { display:none; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
+  .hint-touch { display:none; }
+  @media (pointer: coarse) { .hint-touch { display:block; } .hint-mouse { display:none; } }
+
+  .ctrl-row { margin-top:8px; }
+  .ctrl-label { display:flex; justify-content:space-between; font-size:12px; font-weight:500; }
+  input[type=range] { width:100%; height:26px; margin:2px 0 0; accent-color:var(--accent); }
+  .val { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  button, a.btn {
+    font:inherit; min-height:36px; padding:6px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--chip); color:var(--fg); cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:border-color .15s, background .15s;
+  }
+  button:hover, a.btn:hover { border-color:var(--accent); }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  #toggles { display:flex; flex-direction:column; gap:2px; }
+  label.part { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; user-select:none; }
+  label.part input { width:16px; height:16px; margin:0; accent-color:var(--accent); }
+  .sw { width:12px; height:12px; border-radius:3px; border:1px solid #0003; flex:none; }
+  #err { color:#e04848; display:none; margin-top:8px; font-size:12px; }
+
+  /* ---------- Phone Landscape / Short screens: Compact Card ---------- */
+  @media (max-height: 540px) {
+    #modelTabs { top:8px; padding:2px; font-size:11px; }
+    .tab-btn { padding:4px 10px; font-size:11px; }
+    #panel { top:46px; left:8px; width:260px; max-height:calc(100dvh - 54px); }
+    .head { padding:6px 8px 2px 10px; }
+    .head .sub { display:none; }
+    h1 { font-size:13px; }
+    .body { padding:2px 10px 8px; }
+    .main .btns button { flex:1 1 0; min-height:32px; padding:4px 6px; font-size:12px; }
+  }
+
+  /* ---------- Phone Portrait: Bottom Sheet ---------- */
+  @media (max-width: 640px) and (orientation: portrait) {
+    #modelTabs { top:10px; width:calc(100vw - 24px); justify-content:center; }
+    .tab-btn { flex:1; justify-content:center; padding:7px 8px; font-size:12px; }
+    #panel {
+      top:auto; left:0; right:0; bottom:0; width:auto; max-height:60dvh;
+      border-radius:18px 18px 0 0; border-width:1px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,0.15);
+    }
+    .grab { display:block; width:42px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0; }
+    .head { padding:6px 12px 2px 16px; cursor:pointer; }
+    h1 { font-size:15px; }
+    .body { padding:2px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .main .btns button { flex:1 1 0; min-height:42px; padding:6px 8px; font-size:13px; }
+    #toggles { flex-direction:row; flex-wrap:wrap; gap:6px; }
+    label.part { border:1px solid var(--line); background:var(--chip); border-radius:999px; padding:6px 12px; font-size:12px; }
+    .dl a.btn { flex:1 1 0; min-height:40px; font-size:12px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="view"></div>
+
+<!-- Top Navigation Tabs -->
+<nav id="modelTabs" aria-label="Select 3D Model">
+  <a class="tab-btn" href="../#spreader">🔬 Smear Spreader</a>
+  <span class="tab-btn active">📱 Microscope Adapter</span>
+</nav>
+
+<!-- Controls Card / Bottom Sheet -->
+<div id="panel">
+  <div class="grab"></div>
+  <div class="head" id="head">
+    <div class="titles">
+      <h1>Microscope Phone Adapter</h1>
+      <div class="sub hint-mouse">Drag = rotate · scroll = zoom · right-drag = pan</div>
+      <div class="sub hint-touch">1 finger = rotate · 2 fingers = zoom / pan</div>
+    </div>
+    <button id="toggle" aria-expanded="true" aria-label="Toggle panel collapse"><span>▾</span></button>
+  </div>
+
+  <div class="body">
+    <section class="main">
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Phone Width Clamp</span><span class="val" id="clampVal">74.0 mm</span></div>
+        <input id="clampSlide" type="range" min="60" max="92" step="0.5" value="74">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Camera X Alignment</span><span class="val" id="camXVal">0.0 mm</span></div>
+        <input id="camXSlide" type="range" min="-16" max="16" step="0.5" value="0">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">0.0 mm</span></div>
+        <input id="camYSlide" type="range" min="-21" max="21" step="0.5" value="0">
+      </div>
+
+      <div class="btns">
+        <button id="play">▶ Play</button>
+        <button id="explode">Exploded</button>
+        <button id="reset" aria-label="Reset 3D camera view">⟲ Reset</button>
+      </div>
+    </section>
+
+    <section class="more">
+      <h2>Parts & Visibility</h2>
+      <div id="toggles"></div>
+      <h2>Download 3D STLs</h2>
+      <div class="btns dl">
+        <a class="btn" href="phone_base.stl" download>⬇ phone_base.stl</a>
+        <a class="btn" href="clamp_jaw.stl" download>⬇ clamp_jaw.stl</a>
+        <a class="btn" href="eyepiece_arm.stl" download>⬇ eyepiece_arm.stl</a>
+        <a class="btn" href="thumb_knob.stl" download>⬇ thumb_knob.stl</a>
+      </div>
+      <div class="sub" style="margin-top:8px">Smartphone & microscope eyepiece shown for optical alignment reference.</div>
+    </section>
+    <div id="err"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+const $ = (id) => document.getElementById(id);
+const fail = (m) => { $('err').style.display = 'block'; $('err').textContent = m; };
+const isMobile = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+const isCompact = () => isMobile() || matchMedia('(max-height: 540px)').matches;
+
+let P;
+try {
+  const res = await fetch('params.json?v=' + Date.now());
+  P = await res.json();
+} catch (e) {
+  fail('Could not load params.json. Open this page through a web server, not via file://.');
+  throw e;
+}
+
+// ---------- Three.js Renderer & Scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+$('view').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 60;
+controls.maxDistance = 1200;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+sun.position.set(100, -120, 180);
+sun.castShadow = true;
+const sm = isMobile() ? 1024 : 2048;
+sun.shadow.mapSize.set(sm, sm);
+Object.assign(sun.shadow.camera, { left: -140, right: 140, top: 140, bottom: -140 });
+scene.add(sun, sun.target);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.position.set(0, 0, -45);
+ground.receiveShadow = true;
+const grid = new THREE.GridHelper(400, 40, 0x8899aa, 0x8899aa);
+grid.rotation.x = Math.PI / 2;
+grid.position.set(0, 0, -45);
+grid.material.transparent = true; grid.material.opacity = 0.15;
+scene.add(ground, grid);
+
+const plastic = (c, rough=0.55) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0.05 });
+const metal = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.25, metalness: 0.85 });
+
+// ---------- Parts Setup ----------
+const model = new THREE.Group();
+scene.add(model);
+
+const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x2874a6));
+const jawMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
+const armMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x27ae60));
+const knobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
+
+for (const m of [baseMesh, jawMesh, armMesh, knobMesh]) {
+  m.castShadow = m.receiveShadow = true;
+}
+
+const jawGroup = new THREE.Group(); jawGroup.add(jawMesh);
+const opticalGroup = new THREE.Group(); opticalGroup.add(armMesh);
+const knobGroup = new THREE.Group(); knobGroup.add(knobMesh);
+opticalGroup.add(knobGroup);
+
+// Phone with stained blood cells on screen
+const phoneGroup = new THREE.Group();
+const phoneBodyMat = new THREE.MeshPhysicalMaterial({ color: 0x1c2833, roughness: 0.2, metalness: 0.8, clearcoat: 0.6 });
+const phoneMesh = new THREE.Mesh(new THREE.BoxGeometry(P.phone.wNom, P.phone.lRef, 8.2), phoneBodyMat);
+phoneMesh.position.set(0, 10, 4.1);
+
+const screenCanvas = document.createElement('canvas'); screenCanvas.width = 512; screenCanvas.height = 1024;
+const ctx = screenCanvas.getContext('2d');
+ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 0, 512, 1024);
+const cx = 256, cy = 460, r = 210;
+const grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+grad.addColorStop(0, '#aed6f1'); grad.addColorStop(0.8, '#5dade2'); grad.addColorStop(1, '#1b4f72');
+ctx.fillStyle = grad;
+ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+for (let i = 0; i < 110; i++) {
+  const ang = Math.random() * Math.PI * 2;
+  const dist = Math.sqrt(Math.random()) * (r - 18);
+  const bx = cx + Math.cos(ang) * dist;
+  const by = cy + Math.sin(ang) * dist;
+  const cr = 7 + Math.random() * 9;
+  ctx.fillStyle = i % 5 === 0 ? 'rgba(74, 35, 90, 0.85)' : 'rgba(142, 68, 173, 0.65)';
+  ctx.beginPath(); ctx.arc(bx, by, cr, 0, Math.PI * 2); ctx.fill();
+}
+ctx.fillStyle = '#ffffff'; ctx.font = '24px sans-serif'; ctx.fillText('Microscope View (400x)', 140, 180);
+ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '18px sans-serif'; ctx.fillText('Sample: Blood Smear Stained', 140, 215);
+
+const screenTex = new THREE.CanvasTexture(screenCanvas);
+const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(P.phone.wNom - 4, P.phone.lRef - 16), new THREE.MeshBasicMaterial({ map: screenTex }));
+screenMesh.position.set(0, 10, 8.25);
+phoneGroup.add(phoneMesh, screenMesh);
+
+const camBump = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.8, 32), metal(0x2c3e50));
+camBump.rotation.x = Math.PI / 2; camBump.position.set(0, P.eyepiece.centerNomY, -0.9);
+phoneGroup.add(camBump);
+
+// Microscope Eyepiece Tube
+const eyepieceGroup = new THREE.Group();
+const epBarrel = new THREE.Mesh(new THREE.CylinderGeometry(P.eyepiece.id / 2 - 0.2, P.eyepiece.id / 2 - 0.2, 45, 32), metal(0x34495e));
+epBarrel.rotation.x = Math.PI / 2; epBarrel.position.set(0, 0, -22.5);
+const epLens = new THREE.Mesh(new THREE.CircleGeometry(11, 32), new THREE.MeshPhysicalMaterial({ color: 0x5dade2, transparent: true, opacity: 0.6, roughness: 0.1 }));
+epLens.position.set(0, 0, 0);
+eyepieceGroup.add(epBarrel, epLens);
+opticalGroup.add(eyepieceGroup);
+
+model.add(baseMesh, jawGroup, opticalGroup, phoneGroup);
+
+const parts = {
+  base:     { label: 'Base Plate',    obj: baseMesh,      color: '#2874a6' },
+  jaw:      { label: 'Sliding Jaw',   obj: jawGroup,      color: '#e67e22' },
+  arm:      { label: 'Eyepiece Arm',  obj: armMesh,       color: '#27ae60' },
+  knob:     { label: 'Lock Knob',     obj: knobGroup,     color: '#8e44ad' },
+  phone:    { label: 'Smartphone',    obj: phoneGroup,    color: '#34495e' },
+  eyepiece: { label: 'Microscope EP', obj: eyepieceGroup, color: '#95a5a6' }
+};
+
+for (const p of Object.values(parts)) {
+  const l = document.createElement('label'); l.className = 'part';
+  l.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span>${p.label}`;
+  l.querySelector('input').onchange = (e) => { p.obj.visible = e.target.checked; };
+  $('toggles').appendChild(l);
+}
+
+// ---------- Responsive Layout & Framing ----------
+const panel = $('panel');
+let free = { w: innerWidth, h: innerHeight };
+function layout() {
+  const W = innerWidth, H = innerHeight;
+  renderer.setSize(W, H);
+  camera.aspect = W / H;
+  const r = panel.getBoundingClientRect();
+  const occLeft = isMobile() ? 0 : r.right;
+  const occBottom = isMobile() ? Math.max(0, H - r.top) : 0;
+  free = { w: W - occLeft, h: H - occBottom };
+  camera.setViewOffset(W, H, -occLeft / 2, occBottom / 2, W, H);
+  camera.updateProjectionMatrix();
+}
+
+function frame() {
+  const box = new THREE.Box3().setFromObject(model);
+  const c = box.getCenter(new THREE.Vector3());
+  const dir = new THREE.Vector3(1.2, -1.5, 1.1).normalize();
+  const back = dir.clone();
+  const right = new THREE.Vector3().crossVectors(THREE.Object3D.DEFAULT_UP, back).normalize();
+  const up = new THREE.Vector3().crossVectors(back, right);
+  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const tv = t * free.h / innerHeight * 0.88;
+  const th = t * camera.aspect * free.w / innerWidth * 0.88;
+  let dist = 0;
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+    const p = new THREE.Vector3(x, y, z).sub(c);
+    const zc = p.dot(back);
+    dist = Math.max(dist, zc + Math.abs(p.dot(right)) / th, zc + Math.abs(p.dot(up)) / tv);
+  }
+  controls.target.copy(c);
+  camera.position.copy(c).addScaledVector(dir, dist);
+  controls.update();
+}
+
+const toggleBtn = $('toggle');
+function setCollapsed(c) {
+  panel.classList.toggle('collapsed', c);
+  toggleBtn.setAttribute('aria-expanded', String(!c));
+}
+setCollapsed(isCompact());
+toggleBtn.onclick = (e) => { e.stopPropagation(); setCollapsed(!panel.classList.contains('collapsed')); };
+$('head').onclick = () => { if (isMobile()) setCollapsed(!panel.classList.contains('collapsed')); };
+new ResizeObserver(layout).observe(panel);
+addEventListener('resize', layout);
+layout();
+
+// ---------- Load STLs ----------
+const loader = new STLLoader();
+const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+
+try {
+  const [gb, gj, ga, gk] = await Promise.all([
+    load('phone_base.stl'),
+    load('clamp_jaw.stl'),
+    load('eyepiece_arm.stl'),
+    load('thumb_knob.stl')
+  ]);
+
+  const tf = P.transforms;
+  gb.translate(-tf['phone_base.stl'].printShift[0], -tf['phone_base.stl'].printShift[1], -tf['phone_base.stl'].printShift[2]);
+  gb.computeVertexNormals(); baseMesh.geometry = gb;
+
+  gj.translate(-tf['clamp_jaw.stl'].printShift[0], -tf['clamp_jaw.stl'].printShift[1], -tf['clamp_jaw.stl'].printShift[2]);
+  gj.computeVertexNormals(); jawMesh.geometry = gj;
+
+  ga.translate(-tf['eyepiece_arm.stl'].printShift[0], -tf['eyepiece_arm.stl'].printShift[1], -tf['eyepiece_arm.stl'].printShift[2]);
+  if (tf['eyepiece_arm.stl'].rotX) ga.rotateX(-THREE.MathUtils.degToRad(tf['eyepiece_arm.stl'].rotX));
+  ga.computeVertexNormals(); armMesh.geometry = ga;
+
+  gk.translate(-tf['thumb_knob.stl'].printShift[0], -tf['thumb_knob.stl'].printShift[1], -tf['thumb_knob.stl'].printShift[2]);
+  gk.computeVertexNormals(); knobMesh.geometry = gk;
+  knobMesh.position.set(0, 0, -P.base.t - 4.8 - 8.5);
+
+} catch (e) { fail('Could not load STL: ' + e.message); }
+
+eyepieceGroup.position.set(0, P.eyepiece.centerNomY, -P.base.t - 4.8 - P.eyepiece.len);
+
+// ---------- Sliders & Animations ----------
+const clampSlide = $('clampSlide'), clampVal = $('clampVal');
+const camXSlide = $('camXSlide'), camXVal = $('camXVal');
+const camYSlide = $('camYSlide'), camYVal = $('camYVal');
+const playBtn = $('play'), explodeBtn = $('explode');
+
+let explodeT = 0, explodeTarget = 0, playing = false, playTime = 0;
+
+function updatePositions() {
+  const w = parseFloat(clampSlide.value);
+  const cx = parseFloat(camXSlide.value);
+  const cy = parseFloat(camYSlide.value);
+
+  clampVal.textContent = w.toFixed(1) + ' mm';
+  camXVal.textContent = (cx >= 0 ? '+' : '') + cx.toFixed(1) + ' mm';
+  camYVal.textContent = (cy >= 0 ? '+' : '') + cy.toFixed(1) + ' mm';
+
+  const jawShiftX = w - P.phone.wNom;
+  jawGroup.position.x = jawShiftX;
+  phoneGroup.scale.x = w / P.phone.wNom;
+  phoneGroup.position.x = jawShiftX / 2;
+  opticalGroup.position.set(cx, cy, 0);
+}
+
+clampSlide.oninput = () => { playing = false; updatePositions(); };
+camXSlide.oninput = () => { playing = false; updatePositions(); };
+camYSlide.oninput = () => { playing = false; updatePositions(); };
+
+const setPlaying = (p) => { playing = p; playBtn.textContent = p ? '❚❚ Pause' : '▶ Play'; };
+playBtn.onclick = () => setPlaying(!playing);
+
+explodeBtn.onclick = () => {
+  explodeTarget = explodeTarget ? 0 : 1;
+  explodeBtn.classList.toggle('on', !!explodeTarget);
+  explodeBtn.textContent = explodeTarget ? 'Assemble' : 'Exploded';
+};
+
+$('reset').onclick = () => { layout(); frame(); };
+
+updatePositions();
+frame();
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (playing) {
+    playTime += dt * 1.5;
+    clampSlide.value = 74 + Math.sin(playTime * 0.8) * 12;
+    camXSlide.value = Math.sin(playTime * 1.2) * 14;
+    camYSlide.value = Math.cos(playTime * 1.0) * 16;
+    updatePositions();
+  }
+
+  explodeT += (explodeTarget - explodeT) * Math.min(1, dt * 6);
+  const e = explodeT;
+
+  phoneGroup.position.z = 24 * e;
+  jawGroup.position.x = (parseFloat(clampSlide.value) - P.phone.wNom) + 28 * e;
+  opticalGroup.position.z = -32 * e;
+  knobGroup.position.z = -22 * e;
+  eyepieceGroup.position.z = (-P.base.t - 4.8 - P.eyepiece.len) - 30 * e;
+
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+matchMedia('(orientation: portrait)').addEventListener('change', () => setTimeout(() => { layout(); frame(); }, 150));
+</script>
+</body>
+</html>

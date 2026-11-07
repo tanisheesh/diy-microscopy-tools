@@ -1,0 +1,66 @@
+{
+  "phone": {
+    "wMin": 60.0,
+    "wNom": 74.0,
+    "wMax": 92.0,
+    "tMax": 13.0,
+    "lRef": 155.0
+  },
+  "eyepiece": {
+    "id": 30.0,
+    "od": 34.8,
+    "len": 26.0,
+    "stopD": 21.0,
+    "relief": 12.0,
+    "centerNomY": 38.0
+  },
+  "adjust": {
+    "xTravel": 32.0,
+    "yTravel": 42.0,
+    "xMin": -16.0,
+    "xMax": 16.0,
+    "yMin": -21.0,
+    "yMax": 21.0
+  },
+  "base": {
+    "w": 72.0,
+    "h": 104.0,
+    "t": 5.2,
+    "jawH": 14.0,
+    "fixedJawX": -37.0
+  },
+  "transforms": {
+    "phone_base.stl": {
+      "printShift": [
+        41.51,
+        52.0,
+        5.2
+      ],
+      "rotX": 0
+    },
+    "clamp_jaw.stl": {
+      "printShift": [
+        -7.5,
+        43.0,
+        5.2
+      ],
+      "rotX": 0
+    },
+    "eyepiece_arm.stl": {
+      "printShift": [
+        17.400000000000002,
+        62.4,
+        -5.199999999999996
+      ],
+      "rotX": 180
+    },
+    "thumb_knob.stl": {
+      "printShift": [
+        11.67333333333334,
+        12.0,
+        1.554312234475219e-14
+      ],
+      "rotX": 0
+    }
+  }
+}
