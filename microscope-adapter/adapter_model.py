@@ -279,7 +279,7 @@ def make_clamp_jaw():
 
 def make_eyepiece_arm():
     """Adjustable Vertical Arm with M5 alignment slot and integrated
-    Microscope Eyepiece Sleeve / Collar with split clamp and eye-relief stop.
+    Microscope Eyepiece Sleeve / Collar with split clamp and through-aperture tunnel.
     """
     arm_w = 24.0
     arm_h = 78.0
@@ -297,7 +297,7 @@ def make_eyepiece_arm():
                     .extrude(arm_t + 2))
     arm = arm.cut(slot_through)
 
-    # 2. Eyepiece Collar / Sleeve (Y = 38.0 mm)
+    # 2. Eyepiece Collar / Sleeve outer cylinder (Y = 38.0 mm)
     tube_center_y = 38.0
     tube_z_top = -BASE_T - arm_t
     tube_z_bot = tube_z_top - EYEPIECE_LEN
@@ -306,39 +306,44 @@ def make_eyepiece_arm():
                   .circle(EYEPIECE_OD / 2)
                   .extrude(EYEPIECE_LEN))
 
-    tube_bore = (cq.Workplane("XY", origin=(0, tube_center_y, tube_z_bot - 1))
-                 .circle(EYEPIECE_ID / 2)
-                 .extrude(EYEPIECE_LEN - EYEPIECE_RELIEF + 1))
-
-    cam_bore = (cq.Workplane("XY", origin=(0, tube_center_y, tube_z_top - EYEPIECE_RELIEF - 1))
-                .circle(EYEPIECE_STOP_D / 2)
-                .extrude(EYEPIECE_RELIEF + arm_t + 2))
-
-    sleeve = tube_outer.cut(tube_bore).cut(cam_bore)
-
     # 3. Split Collar Clamping Ears (+Y side of sleeve)
     ear_y0 = tube_center_y + EYEPIECE_OD / 2 - 1.0
     ear_y1 = ear_y0 + CLAMP_EAR_H
     ear_box = (cq.Workplane("XY", origin=(0, (ear_y0 + ear_y1) / 2, tube_z_bot + 4.0))
                .box(CLAMP_EAR_W * 2 + CLAMP_SLIT_W, CLAMP_EAR_H, EYEPIECE_LEN - 8.0, centered=(True, True, False)))
-    
+
+    # Union all solid material together FIRST before cutting bores
+    arm = arm.union(tube_outer).union(ear_box)
+
+    # 4. Cut Eyepiece Bore (Ø30.0 mm from microscope bottom up to internal stop shoulder)
+    tube_bore = (cq.Workplane("XY", origin=(0, tube_center_y, tube_z_bot - 1))
+                 .circle(EYEPIECE_ID / 2)
+                 .extrude(EYEPIECE_LEN - EYEPIECE_RELIEF + 1))
+    arm = arm.cut(tube_bore)
+
+    # 5. Cut Clear Optical Through-Tunnel Aperture (Ø21.0 mm all the way through to phone camera)
+    cam_through_tunnel = (cq.Workplane("XY", origin=(0, tube_center_y, tube_z_bot - 2))
+                          .circle(EYEPIECE_STOP_D / 2)
+                          .extrude(EYEPIECE_LEN + arm_t + 5))
+    arm = arm.cut(cam_through_tunnel)
+
+    # 6. Split Slit & Clamping Bolt Hole through ears
     slit = (cq.Workplane("XY", origin=(0, tube_center_y, tube_z_bot - 1))
             .box(CLAMP_SLIT_W, EYEPIECE_OD, EYEPIECE_LEN + 2, centered=(True, False, False)))
+    arm = arm.cut(slit)
 
     ear_mid_y = (ear_y0 + ear_y1) / 2
     ear_mid_z = tube_z_bot + EYEPIECE_LEN / 2
     bolt_hole = (cq.Workplane("YZ", origin=(-15.0, ear_mid_y, ear_mid_z))
                  .circle(CLAMP_BOLT_D / 2)
                  .extrude(30.0))
+    arm = arm.cut(bolt_hole)
 
     nut_pocket = (cq.Workplane("YZ", origin=(CLAMP_SLIT_W / 2 + CLAMP_EAR_W - CLAMP_NUT_D, ear_mid_y, ear_mid_z))
                   .polygon(6, CLAMP_NUT_AF / math.cos(math.pi / 6))
                   .extrude(CLAMP_NUT_D + 2.0))
+    arm = arm.cut(nut_pocket)
 
-    clamping_lugs = ear_box.cut(slit).cut(bolt_hole).cut(nut_pocket)
-    sleeve = sleeve.union(clamping_lugs).cut(slit)
-
-    arm = arm.union(sleeve)
     return arm
 
 
@@ -428,6 +433,14 @@ def main():
     lift = CLR_SLIDE * SQ2 + 0.3
     lift_inter = base.intersect(jaw.translate((0, 0, lift)))
     assert lift_inter.val().Volume() > 1.0, "Jaw is not captive in dovetail track!"
+
+    # Optical through-tunnel test: light probe cylinder must pass 100% clear through the arm
+    optical_probe = (cq.Workplane("XY", origin=(0, 38.0, -50.0))
+                     .circle(EYEPIECE_STOP_D / 2 - 0.2)
+                     .extrude(60.0))
+    probe_inter = arm.intersect(optical_probe)
+    probe_vol = probe_inter.val().Volume() if probe_inter.vals() else 0.0
+    assert probe_vol < 1e-3, f"Optical tunnel is blocked by {probe_vol:.2f} mm^3 plastic!"
 
     parts_dict = {
         "phone_base.stl": base,
