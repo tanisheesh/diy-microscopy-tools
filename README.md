@@ -19,16 +19,15 @@ A captive 3D-printable jig for making consistent, reproducible blood smears. The
 
 ---
 
-### 2. 📱 Smartphone Microscope Eyepiece Adapter (v3 — Dual-Side Adjustable)
-A symmetrical dual-side adjustable smartphone adapter for light microscopes (compound, monocular, binocular, stereo). Both left and right jaws slide and lock independently so any smartphone (**56 mm – 100 mm wide**, bare or thick cased up to 13.5 mm thick) sits centered and balanced on twin bottom anti-drop ledges over the microscope's eyepiece (**Ø27.5 mm – Ø30.5 mm**).
+### 2. 📱 Smartphone Microscope Eyepiece Adapter (v4 — 1-Screw Smooth Dual-Slider + Flex Collet)
+A lightweight, buttery-smooth smartphone adapter for light microscopes (compound, monocular, binocular, stereo) requiring **only 1 metal screw** (`1× M5 × 20 mm` bolt + nut):
 
-- **Dual-Side Phone Adjusters:** Mirror-twin left + right sliding jaws with bottom anti-drop support ledges, self-wedging tapered grip faces, full-width captive dovetail-T track, and independent flush M5 lock knobs.
-- **Centered 2-Axis Optical Alignment:** 56 mm symmetric horizontal travel (`-28` to `+28 mm`) + 50 mm vertical travel (`111–161 mm` above phone bottom) fits left-corner, center, and right-corner cameras.
-- **Open Optical Tunnel:** Ø30.5 mm ID full-length split-clamp collar with 100% open Ø22 mm through-tunnel and exact 12 mm eye-relief stop.
-- **Flush Single-Size Hardware:** 4× `M5 × 20 mm` hex bolts + 4× `M5` hex nuts (all heads & bolt tips sit completely recessed — zero protrusion!).
-- **Zero Supports:** 100% 3D-printable with pre-oriented flat bed planes (print `thumb_knob.stl` 3×).
+- **Screwless 6-Petal Flex Eyepiece Collet:** Slips safely onto Ø28–30.5 mm light microscope eyepieces with gentle 360° friction ribs and an optional outer rubber-band groove — zero risk of cracking eyepiece or PLA!
+- **Screwless Dual-Side Mobile Sliders (`56 – 100 mm`):** Mirror-twin left + right sliding jaws (`0.30 mm` smooth dovetail glide) auto-centered by 1–2 rubber bands on rear mushroom T-hooks, with twin bottom anti-drop ledges, self-wedging tapered grip, and optional `1.75 mm` filament end-stop pins.
+- **Smooth 1-Screw X-Y Optical Lock:** Chamfered `5.8 mm` slots + `8.6 mm × 4.5 mm` flush anti-rotation hex channel + recessed-cup `thumb_knob.stl` (1×) — zero thread-binding, zero protrusion, `56 mm × 50 mm` travel (`112–162 mm` camera height).
+- **100% Open Ø22 mm Optical Tunnel:** Verified `0.000 mm³` ray-probe blockage with exact 12 mm eye-relief stop.
+- **Zero Supports:** All 5 STLs pre-oriented flat on bed (`phone_base.stl`, `clamp_jaw_left.stl`, `clamp_jaw_right.stl`, `eyepiece_arm.stl`, `thumb_knob.stl` 1×).
 - **Folder:** `microscope-adapter/`
-- **Files:** `adapter_model.py`, `phone_base.stl`, `clamp_jaw_left.stl`, `clamp_jaw_right.stl`, `eyepiece_arm.stl`, `thumb_knob.stl`, `params.json`.
 
 ---
 

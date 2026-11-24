@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14181e">
-<title>Smartphone Microscope Adapter (v3) Viewer</title>
+<title>Smartphone Microscope Adapter (v4) Viewer</title>
 <style>
   :root {
     --bg:#eef1f4; --panel:#ffffffeb; --fg:#1d2430; --muted:#5b6575;
@@ -131,7 +131,7 @@
   <div class="grab"></div>
   <div class="head" id="head">
     <div class="titles">
-      <h1>Microscope Phone Adapter (v3)</h1>
+      <h1>Microscope Phone Adapter (v4)</h1>
       <div class="sub hint-mouse">Drag = rotate · scroll = zoom · right-drag = pan</div>
       <div class="sub hint-touch">1 finger = rotate · 2 fingers = zoom / pan</div>
     </div>
@@ -141,7 +141,7 @@
   <div class="body">
     <section class="main">
       <div class="ctrl-row">
-        <div class="ctrl-label"><span>Dual Phone Clamp Width</span><span class="val" id="clampVal">76.0 mm</span></div>
+        <div class="ctrl-label"><span>Dual Slider Width</span><span class="val" id="clampVal">76.0 mm</span></div>
         <input id="clampSlide" type="range" min="56" max="100" step="0.5" value="76">
       </div>
       <div class="ctrl-row">
@@ -149,7 +149,7 @@
         <input id="camXSlide" type="range" min="-28" max="28" step="0.5" value="-20">
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">H = 136 mm</span></div>
+        <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">H = 137 mm</span></div>
         <input id="camYSlide" type="range" min="-25" max="25" step="0.5" value="0">
       </div>
 
@@ -169,9 +169,9 @@
         <a class="btn" href="clamp_jaw_left.stl" download>⬇ clamp_jaw_left.stl</a>
         <a class="btn" href="clamp_jaw_right.stl" download>⬇ clamp_jaw_right.stl</a>
         <a class="btn" href="eyepiece_arm.stl" download>⬇ eyepiece_arm.stl</a>
-        <a class="btn" href="thumb_knob.stl" download>⬇ thumb_knob.stl (3×)</a>
+        <a class="btn" href="thumb_knob.stl" download>⬇ thumb_knob.stl (1×)</a>
       </div>
-      <div class="sub" style="margin-top:8px">Dual-side symmetrical clamp (56–100 mm). Hardware: 4× M5×20 mm hex bolts + 4× M5 nuts (100% flush). Print thumb_knob.stl 3×.</div>
+      <div class="sub" style="margin-top:8px">Only 1× M5×20 mm bolt + nut (X-Y lock), 1–2 rubber bands (dual phone sliders), 0 screws on eyepiece!</div>
     </section>
     <div id="err"></div>
   </div>
@@ -238,47 +238,41 @@ const jawLMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
 const jawRMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
 const armMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x27ae60));
 const optKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
-const leftKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
-const rightKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
 
-for (const m of [baseMesh, jawLMesh, jawRMesh, armMesh, optKnobMesh, leftKnobMesh, rightKnobMesh]) {
+for (const m of [baseMesh, jawLMesh, jawRMesh, armMesh, optKnobMesh]) {
   m.castShadow = m.receiveShadow = true;
 }
 
-const makeM5Bolt = () => {
-  const g = new THREE.Group();
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 3.5, 6), metal(0xc0c8d0));
-  head.rotation.x = Math.PI / 2; head.position.z = 1.75;
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 20.0, 16), metal(0xa8b2bc));
-  shaft.rotation.x = Math.PI / 2; shaft.position.z = -10.0;
-  g.add(head, shaft);
-  return g;
-};
-
-const nomBoltX = P.phone.jawXNom + P.adjust.jawBoltOffX;
+const optBolt = new THREE.Group();
+const bHead = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 3.5, 6), metal(0xc0c8d0));
+bHead.rotation.x = Math.PI / 2; bHead.position.z = 1.75;
+const bShaft = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 20.0, 16), metal(0xa8b2bc));
+bShaft.rotation.x = Math.PI / 2; bShaft.position.z = -10.0;
+optBolt.add(bHead, bShaft);
+optBolt.position.set(0, P.adjust.optSlotY, -4.5);
 
 const jawLGroup = new THREE.Group(); jawLGroup.add(jawLMesh);
-const leftKnobGroup = new THREE.Group(); leftKnobGroup.add(leftKnobMesh);
-leftKnobGroup.position.set(-nomBoltX, P.adjust.clampSlotY, -P.base.t);
-jawLGroup.add(leftKnobGroup);
-const leftBolt = makeM5Bolt(); leftBolt.position.set(-nomBoltX, P.adjust.clampSlotY, 2.2);
-jawLGroup.add(leftBolt);
-
 const jawRGroup = new THREE.Group(); jawRGroup.add(jawRMesh);
-const rightKnobGroup = new THREE.Group(); rightKnobGroup.add(rightKnobMesh);
-rightKnobGroup.position.set(+nomBoltX, P.adjust.clampSlotY, -P.base.t);
-jawRGroup.add(rightKnobGroup);
-const rightBolt = makeM5Bolt(); rightBolt.position.set(+nomBoltX, P.adjust.clampSlotY, 2.2);
-jawRGroup.add(rightBolt);
-
 const armGroup = new THREE.Group(); armGroup.add(armMesh);
-const collarBolt = makeM5Bolt(); collarBolt.rotation.y = -Math.PI / 2;
-collarBolt.position.set(-8.0, P.eyepiece.centerNomY + P.eyepiece.od / 2 - 2.0 + 6.75, (P.eyepiece.tubeZBot + P.eyepiece.stopZ) / 2);
-armGroup.add(collarBolt);
-
 const optKnobGroup = new THREE.Group(); optKnobGroup.add(optKnobMesh);
 optKnobGroup.position.set(0, P.adjust.optSlotY, P.base.armZBack);
-const optBolt = makeM5Bolt(); optBolt.position.set(0, P.adjust.optSlotY, -4.3);
+
+const bandGroup = new THREE.Group();
+const bandMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.75, metalness: 0.0 });
+const bandTop = new THREE.Mesh(new THREE.BoxGeometry(1, 2.2, 2.2), bandMat);
+const bandBot = new THREE.Mesh(new THREE.BoxGeometry(1, 2.2, 2.2), bandMat);
+bandTop.position.set(0, P.phone.hookY + 2.4, -7.8);
+bandBot.position.set(0, P.phone.hookY - 2.4, -7.8);
+bandGroup.add(bandTop, bandBot);
+
+const pinsGroup = new THREE.Group();
+const pinMat = plastic(0xd8dde4);
+for (const side of [-1, 1]) {
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.875, 0.875, 10.0, 16), pinMat);
+  pin.rotation.x = Math.PI / 2;
+  pin.position.set(side * P.phone.pinX, P.phone.trackY, -P.base.t + 5.0);
+  pinsGroup.add(pin);
+}
 
 const phoneGroup = new THREE.Group();
 const phoneBodyMat = new THREE.MeshPhysicalMaterial({ color: 0x1c2833, roughness: 0.2, metalness: 0.8, clearcoat: 0.6 });
@@ -318,9 +312,9 @@ phoneGroup.add(phoneBodyGroup);
 
 const camGroup = new THREE.Group();
 const camBump = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 1.8, 32), metal(0x2c3e50));
-camBump.rotation.x = Math.PI / 2; camBump.position.set(0, 136.0, -0.8);
+camBump.rotation.x = Math.PI / 2; camBump.position.set(0, 137.0, -0.8);
 const camLens = new THREE.Mesh(new THREE.CircleGeometry(5.0, 32), new THREE.MeshPhysicalMaterial({ color: 0x112233, roughness: 0.08, metalness: 0.9 }));
-camLens.rotation.y = Math.PI; camLens.position.set(0, 136.0, -1.72);
+camLens.rotation.y = Math.PI; camLens.position.set(0, 137.0, -1.72);
 camGroup.add(camBump, camLens);
 phoneGroup.add(camGroup);
 phoneGroup.position.set(0, P.phone.botY + 0.2, 0);
@@ -334,19 +328,19 @@ eyepieceGroup.add(epBarrel, epLens);
 eyepieceGroup.position.set(0, P.eyepiece.centerNomY, P.eyepiece.stopZ);
 armGroup.add(eyepieceGroup);
 
-model.add(baseMesh, jawLGroup, jawRGroup, armGroup, optKnobGroup, optBolt, phoneGroup);
+model.add(baseMesh, jawLGroup, jawRGroup, bandGroup, pinsGroup, armGroup, optKnobGroup, optBolt, phoneGroup);
 
 const jawsToggle = { set visible(v) { jawLMesh.visible = jawRMesh.visible = v; } };
-const knobsToggle = { set visible(v) { optKnobMesh.visible = leftKnobMesh.visible = rightKnobMesh.visible = v; } };
-const boltsToggle = { set visible(v) { optBolt.visible = leftBolt.visible = rightBolt.visible = collarBolt.visible = v; } };
 const parts = {
-  base:     { label: 'Phone Base',       obj: baseMesh,      color: '#2874a6' },
-  jaws:     { label: 'Dual Jaws (L+R)',  obj: jawsToggle,    color: '#e67e22' },
-  arm:      { label: 'Eyepiece Arm',     obj: armMesh,       color: '#27ae60' },
-  knobs:    { label: 'Lock Knobs (3×)',  obj: knobsToggle,   color: '#8e44ad' },
-  bolts:    { label: 'M5×20 Bolts (4×)', obj: boltsToggle,   color: '#bdc3c7' },
-  phone:    { label: 'Smartphone',       obj: phoneGroup,    color: '#34495e' },
-  eyepiece: { label: 'Microscope EP',    obj: eyepieceGroup, color: '#5dade2' }
+  base:     { label: 'Phone Base',        obj: baseMesh,      color: '#2874a6' },
+  jaws:     { label: 'Dual Sliders (L+R)',obj: jawsToggle,    color: '#e67e22' },
+  band:     { label: 'Rubber Band',       obj: bandGroup,     color: '#e74c3c' },
+  arm:      { label: 'Flex Collet Arm',   obj: armMesh,       color: '#27ae60' },
+  knob:     { label: 'Lock Knob (1×)',    obj: optKnobMesh,   color: '#8e44ad' },
+  bolt:     { label: 'M5×20 Bolt (1×)',   obj: optBolt,       color: '#bdc3c7' },
+  pins:     { label: 'Stop Pins (2×)',    obj: pinsGroup,     color: '#d8dde4' },
+  phone:    { label: 'Smartphone',        obj: phoneGroup,    color: '#34495e' },
+  eyepiece: { label: 'Microscope EP',     obj: eyepieceGroup, color: '#5dade2' }
 };
 
 for (const p of Object.values(parts)) {
@@ -433,8 +427,6 @@ try {
   gk.rotateX(Math.PI);
   gk.computeVertexNormals();
   optKnobMesh.geometry = gk;
-  leftKnobMesh.geometry = gk.clone();
-  rightKnobMesh.geometry = gk.clone();
 } catch (e) { fail('Could not load STL: ' + e.message); }
 
 const clampSlide = $('clampSlide'), clampVal = $('clampVal');
@@ -461,6 +453,11 @@ function updatePositions() {
   const halfDelta = (w / 2) - P.phone.jawXNom;
   jawLGroup.position.x = -halfDelta;
   jawRGroup.position.x = +halfDelta;
+
+  const bandSpan = w + P.phone.jawWall * 1.4;
+  bandTop.scale.x = bandSpan;
+  bandBot.scale.x = bandSpan;
+
   phoneBodyGroup.scale.x = w / P.phone.wNom;
   camGroup.position.x = -w / 2 + 18.0;
 
@@ -503,14 +500,15 @@ renderer.setAnimationLoop(() => {
   const e = explodeT;
   const cx = parseFloat(camXSlide.value);
   const cy = parseFloat(camYSlide.value);
-  const halfDelta = (parseFloat(clampSlide.value) / 2) - P.phone.jawXNom;
+  const w = parseFloat(clampSlide.value);
+  const halfDelta = (w / 2) - P.phone.jawXNom;
 
   phoneGroup.position.z = 26 * e;
   jawLGroup.position.x = -halfDelta - 26 * e;
   jawRGroup.position.x = +halfDelta + 26 * e;
-  leftKnobGroup.position.z = -P.base.t - 24 * e;
-  rightKnobGroup.position.z = -P.base.t - 24 * e;
-  optBolt.position.set(cx, P.adjust.optSlotY, -4.3 - 10 * e);
+  bandGroup.position.z = -18 * e;
+  pinsGroup.position.z = 16 * e;
+  optBolt.position.set(cx, P.adjust.optSlotY, -4.5 - 10 * e);
   armGroup.position.set(cx, cy, -24 * e);
   optKnobGroup.position.set(cx, P.adjust.optSlotY, P.base.armZBack - 44 * e);
   eyepieceGroup.position.z = P.eyepiece.stopZ - 34 * e;

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "phone": {
     "wMin": 56.0,
     "wNom": 76.0,
@@ -9,16 +9,20 @@
     "jawXMin": 28.0,
     "jawXNom": 38.0,
     "jawXMax": 51.5,
-    "botY": -65.0
+    "jawWall": 8.0,
+    "botY": -65.0,
+    "hookY": -59.5,
+    "pinX": 62.5,
+    "trackY": -36.0
   },
   "eyepiece": {
-    "id": 30.5,
-    "od": 35.5,
+    "id": 30.2,
+    "od": 35.0,
     "socketLen": 22.0,
     "stopD": 22.0,
     "stopZ": -12.0,
     "tubeZBot": -34.0,
-    "centerNomY": 71.0
+    "centerNomY": 72.0
   },
   "adjust": {
     "xMin": -28.0,
@@ -27,59 +31,57 @@
     "yMin": -25.0,
     "yMax": 25.0,
     "yNom": 0.0,
-    "optSlotY": 14.0,
-    "clampSlotY": -57.0,
-    "jawBoltOffX": 6.5
+    "optSlotY": 14.0
   },
   "base": {
-    "t": 6.8,
+    "t": 7.0,
     "armT": 5.0,
-    "armZBack": -11.8,
-    "knobH": 14.0,
+    "armZBack": -12.0,
+    "knobH": 14.5,
     "jawH": 14.5
   },
   "transforms": {
     "phone_base.stl": {
       "printShift": [
-        70.0,
-        69.5,
-        6.800000000000002
+        65.0,
+        51.0,
+        7.0
       ],
       "rotAxis": "",
       "rotDeg": 0
     },
     "clamp_jaw_left.stl": {
       "printShift": [
-        14.500000000000005,
+        17.700000000000003,
         69.5,
-        51.0
+        46.0
       ],
       "rotAxis": "Y",
       "rotDeg": -90
     },
     "clamp_jaw_right.stl": {
       "printShift": [
-        3.549999999999998,
+        10.499999999999996,
         69.5,
-        51.0
+        46.0
       ],
       "rotAxis": "Y",
       "rotDeg": 90
     },
     "eyepiece_arm.stl": {
       "printShift": [
-        17.75,
-        100.25,
-        -6.799999999999999
+        17.5000001,
+        89.5000001,
+        -6.999999900000007
       ],
       "rotAxis": "X",
       "rotDeg": 180
     },
     "thumb_knob.stl": {
       "printShift": [
-        10.692727272727286,
-        11.000000000000002,
-        1.3322676295501878e-14
+        11.625000000000002,
+        11.999999999999998,
+        2.042810365310288e-14
       ],
       "rotAxis": "",
       "rotDeg": 0
