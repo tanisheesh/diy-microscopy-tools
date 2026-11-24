@@ -19,16 +19,16 @@ A captive 3D-printable jig for making consistent, reproducible blood smears. The
 
 ---
 
-### 2. 📱 Smartphone Microscope Eyepiece Adapter (v2)
-A universal 2-axis adjustable smartphone adapter for light microscopes (compound, monocular, binocular, stereo). Cradles any smartphone (**58 mm – 95 mm wide**, bare or thick cased up to 13.5 mm thick) on bottom anti-drop ledges with self-wedging tapered jaws and locks the camera directly over the microscope's eyepiece (**Ø27.5 mm – Ø30.5 mm**).
+### 2. 📱 Smartphone Microscope Eyepiece Adapter (v3 — Dual-Side Adjustable)
+A symmetrical dual-side adjustable smartphone adapter for light microscopes (compound, monocular, binocular, stereo). Both left and right jaws slide and lock independently so any smartphone (**56 mm – 100 mm wide**, bare or thick cased up to 13.5 mm thick) sits centered and balanced on twin bottom anti-drop ledges over the microscope's eyepiece (**Ø27.5 mm – Ø30.5 mm**).
 
-- **Rock-Solid Phone Clamp:** Open-top camera zone, bottom anti-drop support ledges (safe on 45° tilted microscopes), self-wedging tapered side jaws, captive dovetail-T track, and dedicated M5 clamp lock knob.
-- **2-Axis Optical Alignment:** 46 mm horizontal travel (`-26` to `+20 mm`) + 50 mm vertical travel (`111–161 mm` above phone bottom) fits corner and center cameras on compact to Ultra/Pro Max phones.
-- **Open Optical Tunnel:** Ø30.5 mm ID split-clamp collar with 100% open Ø22 mm through-tunnel and exact 12 mm eye-relief stop.
-- **Flush Single-Size Hardware:** 3× `M5 × 20 mm` hex bolts + 3× `M5` hex nuts (all heads & bolt tips sit completely recessed — zero protrusion!).
-- **Zero Supports:** 100% 3D-printable with pre-oriented flat bed planes (print `thumb_knob.stl` 2×).
+- **Dual-Side Phone Adjusters:** Mirror-twin left + right sliding jaws with bottom anti-drop support ledges, self-wedging tapered grip faces, full-width captive dovetail-T track, and independent flush M5 lock knobs.
+- **Centered 2-Axis Optical Alignment:** 56 mm symmetric horizontal travel (`-28` to `+28 mm`) + 50 mm vertical travel (`111–161 mm` above phone bottom) fits left-corner, center, and right-corner cameras.
+- **Open Optical Tunnel:** Ø30.5 mm ID full-length split-clamp collar with 100% open Ø22 mm through-tunnel and exact 12 mm eye-relief stop.
+- **Flush Single-Size Hardware:** 4× `M5 × 20 mm` hex bolts + 4× `M5` hex nuts (all heads & bolt tips sit completely recessed — zero protrusion!).
+- **Zero Supports:** 100% 3D-printable with pre-oriented flat bed planes (print `thumb_knob.stl` 3×).
 - **Folder:** `microscope-adapter/`
-- **Files:** `adapter_model.py`, `phone_base.stl`, `clamp_jaw.stl`, `eyepiece_arm.stl`, `thumb_knob.stl`, `params.json`.
+- **Files:** `adapter_model.py`, `phone_base.stl`, `clamp_jaw_left.stl`, `clamp_jaw_right.stl`, `eyepiece_arm.stl`, `thumb_knob.stl`, `params.json`.
 
 ---
 

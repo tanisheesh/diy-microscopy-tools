@@ -407,11 +407,11 @@ async function initSpreaderModel() {
 }
 
 // =========================================================================
-// MODEL 2: Microscope Phone Adapter (v2)
+// MODEL 2: Microscope Phone Adapter (v3 - Dual-Side Adjustable)
 // =========================================================================
 async function initAdapterModel() {
-  $('modelTitle').textContent = 'Microscope Phone Adapter (v2)';
-  $('modelNote').textContent = 'Hardware: 3x M5×20 mm hex bolts + 3x M5 hex nuts (all 100% flush). Print thumb_knob.stl 2×.';
+  $('modelTitle').textContent = 'Microscope Phone Adapter (v3)';
+  $('modelNote').textContent = 'Dual-side symmetrical clamp (56–100 mm). Hardware: 4× M5×20 mm hex bolts + 4× M5 nuts (100% flush). Print thumb_knob.stl 3×.';
 
   const res = await fetch('microscope-adapter/params.json?v=' + Date.now());
   const P = await res.json();
@@ -421,35 +421,18 @@ async function initAdapterModel() {
   const grp = new THREE.Group();
 
   const baseMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x2874a6));
-  const jawMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
+  const jawLMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
+  const jawRMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0xe67e22));
   const armMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x27ae60));
   const optKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
-  const clampKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
+  const leftKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
+  const rightKnobMesh = new THREE.Mesh(new THREE.BufferGeometry(), plastic(0x8e44ad));
 
-  for (const m of [baseMesh, jawMesh, armMesh, optKnobMesh, clampKnobMesh]) {
+  for (const m of [baseMesh, jawLMesh, jawRMesh, armMesh, optKnobMesh, leftKnobMesh, rightKnobMesh]) {
     m.castShadow = m.receiveShadow = true;
   }
 
-  // Sliding right jaw + its dedicated Clamp Lock Knob #2 + M5 bolt
-  const jawGroup = new THREE.Group();
-  jawGroup.add(jawMesh);
-
-  const clampKnobGroup = new THREE.Group();
-  clampKnobGroup.add(clampKnobMesh);
-  const clampBoltX = P.phone.fixedJawX + P.phone.wNom + P.adjust.jawBoltOffX;
-  clampKnobGroup.position.set(clampBoltX, P.adjust.clampSlotY, -P.base.t);
-  jawGroup.add(clampKnobGroup);
-
-  // Optical arm (moves in X and Y) + eyepiece barrel inside collar
-  const armGroup = new THREE.Group();
-  armGroup.add(armMesh);
-
-  // Optical Lock Knob #1 (moves ONLY in X along horizontal base slot at Y = optSlotY!)
-  const optKnobGroup = new THREE.Group();
-  optKnobGroup.add(optKnobMesh);
-  optKnobGroup.position.set(0, P.adjust.optSlotY, P.base.armZBack);
-
-  // Hardware M5x20 reference bolts (3x)
+  // Hardware M5x20 reference bolts (4x)
   const makeM5Bolt = () => {
     const g = new THREE.Group();
     const head = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 3.5, 6), metal(0xc0c8d0));
@@ -461,25 +444,53 @@ async function initAdapterModel() {
     g.add(head, shaft);
     return g;
   };
-  const optBolt = makeM5Bolt();
-  optBolt.position.set(0, P.adjust.optSlotY, -4.3); // head sits 0.8 mm below phone face Z=0!
 
-  const clampBolt = makeM5Bolt();
-  clampBolt.position.set(clampBoltX, P.adjust.clampSlotY, 2.2); // head recessed flush inside jaw foot!
-  jawGroup.add(clampBolt);
+  const nomBoltX = P.phone.jawXNom + P.adjust.jawBoltOffX;
 
+  // Left Sliding Jaw + Left Clamp Knob + Bolt
+  const jawLGroup = new THREE.Group();
+  jawLGroup.add(jawLMesh);
+  const leftKnobGroup = new THREE.Group();
+  leftKnobGroup.add(leftKnobMesh);
+  leftKnobGroup.position.set(-nomBoltX, P.adjust.clampSlotY, -P.base.t);
+  jawLGroup.add(leftKnobGroup);
+  const leftBolt = makeM5Bolt();
+  leftBolt.position.set(-nomBoltX, P.adjust.clampSlotY, 2.2);
+  jawLGroup.add(leftBolt);
+
+  // Right Sliding Jaw + Right Clamp Knob + Bolt
+  const jawRGroup = new THREE.Group();
+  jawRGroup.add(jawRMesh);
+  const rightKnobGroup = new THREE.Group();
+  rightKnobGroup.add(rightKnobMesh);
+  rightKnobGroup.position.set(+nomBoltX, P.adjust.clampSlotY, -P.base.t);
+  jawRGroup.add(rightKnobGroup);
+  const rightBolt = makeM5Bolt();
+  rightBolt.position.set(+nomBoltX, P.adjust.clampSlotY, 2.2);
+  jawRGroup.add(rightBolt);
+
+  // Optical arm (moves in X and Y) + eyepiece barrel inside collar + collar M5 bolt
+  const armGroup = new THREE.Group();
+  armGroup.add(armMesh);
   const collarBolt = makeM5Bolt();
   collarBolt.rotation.y = -Math.PI / 2;
   collarBolt.position.set(-8.0, P.eyepiece.centerNomY + P.eyepiece.od / 2 - 2.0 + 6.75, (P.eyepiece.tubeZBot + P.eyepiece.stopZ) / 2);
   armGroup.add(collarBolt);
 
-  // Smartphone resting squarely on bottom anti-drop ledges (Y = botY) & against left jaw (X = fixedJawX)
+  // Optical Lock Knob #1 + M5 Bolt (moves in X along upper base slot)
+  const optKnobGroup = new THREE.Group();
+  optKnobGroup.add(optKnobMesh);
+  optKnobGroup.position.set(0, P.adjust.optSlotY, P.base.armZBack);
+  const optBolt = makeM5Bolt();
+  optBolt.position.set(0, P.adjust.optSlotY, -4.3);
+
+  // Centered Smartphone resting squarely on BOTH bottom anti-drop ledges (Y = botY)
   const phoneGroup = new THREE.Group();
   const phoneBodyMat = new THREE.MeshPhysicalMaterial({ color: 0x1c2833, roughness: 0.2, metalness: 0.8, clearcoat: 0.6 });
   const phoneT = 8.4;
-  // Build phone geometry with left edge at X=0 and bottom edge at Y=0 so scaling X pins left edge cleanly!
+  // Centered on X = 0, bottom edge at Y = 0
   const phoneGeo = new THREE.BoxGeometry(P.phone.wNom, P.phone.lRef, phoneT);
-  phoneGeo.translate(P.phone.wNom / 2, P.phone.lRef / 2, phoneT / 2 + 0.1);
+  phoneGeo.translate(0, P.phone.lRef / 2, phoneT / 2 + 0.1);
   const phoneMesh = new THREE.Mesh(phoneGeo, phoneBodyMat);
 
   const screenCanvas = document.createElement('canvas'); screenCanvas.width = 512; screenCanvas.height = 1024;
@@ -505,24 +516,26 @@ async function initAdapterModel() {
 
   const screenTex = new THREE.CanvasTexture(screenCanvas);
   const screenGeo = new THREE.PlaneGeometry(P.phone.wNom - 5, P.phone.lRef - 14);
-  screenGeo.translate(P.phone.wNom / 2, P.phone.lRef / 2, phoneT + 0.15);
+  screenGeo.translate(0, P.phone.lRef / 2, phoneT + 0.15);
   const screenMesh = new THREE.Mesh(screenGeo, new THREE.MeshBasicMaterial({ map: screenTex }));
 
   const phoneBodyGroup = new THREE.Group();
   phoneBodyGroup.add(phoneMesh, screenMesh);
   phoneGroup.add(phoneBodyGroup);
 
-  // Corner camera module on phone back (18 mm from left edge, 136 mm from bottom -> aligns with X=-22, Y=71!)
+  // Corner camera module on phone back (18 mm from left edge, 136 mm from bottom)
+  const camGroup = new THREE.Group();
   const camBump = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 1.8, 32), metal(0x2c3e50));
   camBump.rotation.x = Math.PI / 2;
-  camBump.position.set(18.0, 136.0, -0.8);
+  camBump.position.set(0, 136.0, -0.8);
   const camLens = new THREE.Mesh(new THREE.CircleGeometry(5.0, 32), new THREE.MeshPhysicalMaterial({ color: 0x112233, roughness: 0.08, metalness: 0.9 }));
   camLens.rotation.y = Math.PI;
-  camLens.position.set(18.0, 136.0, -1.72);
-  phoneGroup.add(camBump, camLens);
-  phoneGroup.position.set(P.phone.fixedJawX + 0.2, P.phone.botY + 0.2, 0);
+  camLens.position.set(0, 136.0, -1.72);
+  camGroup.add(camBump, camLens);
+  phoneGroup.add(camGroup);
+  phoneGroup.position.set(0, P.phone.botY + 0.2, 0);
 
-  // Reference Light Microscope Eyepiece Barrel (Ø30 mm seated against internal stop ring at stopZ = -12 mm)
+  // Reference Light Microscope Eyepiece Barrel seated against internal stop shoulder at stopZ = -12 mm
   const eyepieceGroup = new THREE.Group();
   const epBarrel = new THREE.Mesh(new THREE.CylinderGeometry(P.eyepiece.id / 2 - 0.35, P.eyepiece.id / 2 - 0.35, 48, 32), metal(0x34495e));
   epBarrel.rotation.x = Math.PI / 2;
@@ -533,7 +546,7 @@ async function initAdapterModel() {
   eyepieceGroup.position.set(0, P.eyepiece.centerNomY, P.eyepiece.stopZ);
   armGroup.add(eyepieceGroup);
 
-  grp.add(baseMesh, jawGroup, armGroup, optKnobGroup, optBolt, phoneGroup);
+  grp.add(baseMesh, jawLGroup, jawRGroup, armGroup, optKnobGroup, optBolt, phoneGroup);
 
   // Helper to invert print orientation back into CAD assembly coordinates
   const applyInvTransform = (geom, tfEntry) => {
@@ -544,68 +557,64 @@ async function initAdapterModel() {
     geom.computeVertexNormals();
   };
 
-  // Load STLs (cache-busted so updated v2 STLs always load fresh)
+  // Load all 5 v3 STLs
   const bust = '?v=' + Date.now();
-  const [gb, gj, ga, gk] = await Promise.all([
+  const [gb, gjl, gjr, ga, gk] = await Promise.all([
     loadSTL('microscope-adapter/phone_base.stl' + bust),
-    loadSTL('microscope-adapter/clamp_jaw.stl' + bust),
+    loadSTL('microscope-adapter/clamp_jaw_left.stl' + bust),
+    loadSTL('microscope-adapter/clamp_jaw_right.stl' + bust),
     loadSTL('microscope-adapter/eyepiece_arm.stl' + bust),
     loadSTL('microscope-adapter/thumb_knob.stl' + bust)
   ]);
 
   const tf = P.transforms;
-  applyInvTransform(gb, tf['phone_base.stl']);
-  baseMesh.geometry = gb;
-
-  applyInvTransform(gj, tf['clamp_jaw.stl']);
-  jawMesh.geometry = gj;
-
-  applyInvTransform(ga, tf['eyepiece_arm.stl']);
-  armMesh.geometry = ga;
+  applyInvTransform(gb, tf['phone_base.stl']); baseMesh.geometry = gb;
+  applyInvTransform(gjl, tf['clamp_jaw_left.stl']); jawLMesh.geometry = gjl;
+  applyInvTransform(gjr, tf['clamp_jaw_right.stl']); jawRMesh.geometry = gjr;
+  applyInvTransform(ga, tf['eyepiece_arm.stl']); armMesh.geometry = ga;
 
   applyInvTransform(gk, tf['thumb_knob.stl']);
-  gk.rotateX(Math.PI); // Flip so flat clamping floor is at Z=0 and recessed cup points -Z
+  gk.rotateX(Math.PI);
   gk.computeVertexNormals();
   optKnobMesh.geometry = gk;
-  clampKnobMesh.geometry = gk.clone();
+  leftKnobMesh.geometry = gk.clone();
+  rightKnobMesh.geometry = gk.clone();
 
-  // Build UI controls matching v2 parameters
+  // Build UI controls for Dual-Side Clamp + 2-Axis Camera Alignment
   $('dynamicControls').innerHTML = `
     <div class="ctrl-row">
-      <div class="ctrl-label"><span>Phone Width Clamp</span><span class="val" id="clampVal">${P.phone.wNom.toFixed(1)} mm</span></div>
+      <div class="ctrl-label"><span>Dual Phone Clamp Width</span><span class="val" id="clampVal">${P.phone.wNom.toFixed(1)} mm</span></div>
       <input id="clampSlide" type="range" min="${P.phone.wMin}" max="${P.phone.wMax}" step="0.5" value="${P.phone.wNom}">
     </div>
     <div class="ctrl-row">
-      <div class="ctrl-label"><span>Camera X Alignment</span><span class="val" id="camXVal">-22.0 mm</span></div>
-      <input id="camXSlide" type="range" min="${P.adjust.xMin}" max="${P.adjust.xMax}" step="0.5" value="-22">
+      <div class="ctrl-label"><span>Camera X Alignment</span><span class="val" id="camXVal">-20.0 mm</span></div>
+      <input id="camXSlide" type="range" min="${P.adjust.xMin}" max="${P.adjust.xMax}" step="0.5" value="-20">
     </div>
     <div class="ctrl-row">
-      <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">0.0 mm</span></div>
+      <div class="ctrl-label"><span>Camera Y Alignment</span><span class="val" id="camYVal">H = 136 mm</span></div>
       <input id="camYSlide" type="range" min="${P.adjust.yMin}" max="${P.adjust.yMax}" step="0.5" value="0">
     </div>
   `;
 
   $('dlButtons').innerHTML = `
     <a class="btn" href="microscope-adapter/phone_base.stl" download>⬇ phone_base.stl</a>
-    <a class="btn" href="microscope-adapter/clamp_jaw.stl" download>⬇ clamp_jaw.stl</a>
+    <a class="btn" href="microscope-adapter/clamp_jaw_left.stl" download>⬇ clamp_jaw_left.stl</a>
+    <a class="btn" href="microscope-adapter/clamp_jaw_right.stl" download>⬇ clamp_jaw_right.stl</a>
     <a class="btn" href="microscope-adapter/eyepiece_arm.stl" download>⬇ eyepiece_arm.stl</a>
-    <a class="btn" href="microscope-adapter/thumb_knob.stl" download>⬇ thumb_knob.stl (2×)</a>
+    <a class="btn" href="microscope-adapter/thumb_knob.stl" download>⬇ thumb_knob.stl (3×)</a>
   `;
 
-  const knobsToggle = {
-    set visible(v) { optKnobMesh.visible = clampKnobMesh.visible = v; }
-  };
-  const boltsToggle = {
-    set visible(v) { optBolt.visible = clampBolt.visible = collarBolt.visible = v; }
-  };
+  const jawsToggle = { set visible(v) { jawLMesh.visible = jawRMesh.visible = v; } };
+  const knobsToggle = { set visible(v) { optKnobMesh.visible = leftKnobMesh.visible = rightKnobMesh.visible = v; } };
+  const boltsToggle = { set visible(v) { optBolt.visible = leftBolt.visible = rightBolt.visible = collarBolt.visible = v; } };
   const parts = {
-    base:     { label: 'Phone Base',    obj: baseMesh,      color: '#2874a6' },
-    jaw:      { label: 'Sliding Jaw',   obj: jawMesh,       color: '#e67e22' },
-    arm:      { label: 'Eyepiece Arm',  obj: armMesh,       color: '#27ae60' },
-    knobs:    { label: 'Lock Knobs (2×)', obj: knobsToggle, color: '#8e44ad' },
-    bolts:    { label: 'M5×20 Bolts',   obj: boltsToggle,   color: '#bdc3c7' },
-    phone:    { label: 'Smartphone',    obj: phoneGroup,    color: '#34495e' },
-    eyepiece: { label: 'Microscope EP', obj: eyepieceGroup, color: '#5dade2' }
+    base:     { label: 'Phone Base',      obj: baseMesh,      color: '#2874a6' },
+    jaws:     { label: 'Dual Jaws (L+R)', obj: jawsToggle,    color: '#e67e22' },
+    arm:      { label: 'Eyepiece Arm',    obj: armMesh,       color: '#27ae60' },
+    knobs:    { label: 'Lock Knobs (3×)', obj: knobsToggle,   color: '#8e44ad' },
+    bolts:    { label: 'M5×20 Bolts (4×)',obj: boltsToggle,   color: '#bdc3c7' },
+    phone:    { label: 'Smartphone',      obj: phoneGroup,    color: '#34495e' },
+    eyepiece: { label: 'Microscope EP',   obj: eyepieceGroup, color: '#5dade2' }
   };
   $('toggles').innerHTML = '';
   for (const p of Object.values(parts)) {
@@ -629,9 +638,13 @@ async function initAdapterModel() {
     camXVal.textContent = (cx >= 0 ? '+' : '') + cx.toFixed(1) + ' mm';
     camYVal.textContent = `H = ${camH.toFixed(0)} mm`;
 
-    const jawShiftX = w - P.phone.wNom;
-    jawGroup.position.x = jawShiftX;
+    // BOTH Left & Right jaws slide symmetrically outward/inward keeping phone centered on X = 0!
+    const halfDelta = (w / 2) - P.phone.jawXNom;
+    jawLGroup.position.x = -halfDelta;
+    jawRGroup.position.x = +halfDelta;
+
     phoneBodyGroup.scale.x = w / P.phone.wNom;
+    camGroup.position.x = -w / 2 + 18.0;
 
     armGroup.position.set(cx, cy, 0);
     optKnobGroup.position.x = cx;
@@ -647,19 +660,21 @@ async function initAdapterModel() {
   currentModelAnimate = (dt) => {
     if (animState.playing) {
       animState.playTime += dt * 1.4;
-      clampSlide.value = 76 + Math.sin(animState.playTime * 0.7) * 14;
-      camXSlide.value = -3 + Math.sin(animState.playTime * 1.1) * 19;
+      clampSlide.value = 78 + Math.sin(animState.playTime * 0.7) * 18;
+      camXSlide.value = Math.sin(animState.playTime * 1.1) * 24;
       camYSlide.value = Math.cos(animState.playTime * 0.9) * 20;
       updateAdapterPositions();
     }
     const e = animState.explodeT;
     const cx = parseFloat(camXSlide.value);
     const cy = parseFloat(camYSlide.value);
-    const jawShiftX = parseFloat(clampSlide.value) - P.phone.wNom;
+    const halfDelta = (parseFloat(clampSlide.value) / 2) - P.phone.jawXNom;
 
     phoneGroup.position.z = 26 * e;
-    jawGroup.position.x = jawShiftX + 28 * e;
-    clampKnobGroup.position.z = -P.base.t - 24 * e;
+    jawLGroup.position.x = -halfDelta - 26 * e;
+    jawRGroup.position.x = +halfDelta + 26 * e;
+    leftKnobGroup.position.z = -P.base.t - 24 * e;
+    rightKnobGroup.position.z = -P.base.t - 24 * e;
     optBolt.position.set(cx, P.adjust.optSlotY, -4.3 - 10 * e);
     armGroup.position.set(cx, cy, -24 * e);
     optKnobGroup.position.set(cx, P.adjust.optSlotY, P.base.armZBack - 44 * e);
