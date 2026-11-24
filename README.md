@@ -14,17 +14,19 @@ A captive 3D-printable jig for making consistent, reproducible blood smears. The
 - **Captive Fit:** Dovetail-T tongues trapped in undercut grooves (cannot lift off).
 - **End Stops:** Closed front end stop + removable rear 1.75 mm filament stop pins.
 - **Smear Travel:** ~48 mm smooth stroke.
+- **Folder:** `smear-spreader/`
 - **Files:** `spreader_model.py`, `base.stl`, `carriage.stl`, `params.json`.
 
 ---
 
-### 2. 📱 Smartphone Microscope Eyepiece Adapter
-A universal 2-axis adjustable smartphone adapter for light microscopes (compound, monocular, binocular, stereo). Clamps any phone (60 mm to 92 mm wide) and locks the camera over the microscope's eyepiece (Ø28.0 mm to Ø30.5 mm) for microphotography and group viewing.
+### 2. 📱 Smartphone Microscope Eyepiece Adapter (v2)
+A universal 2-axis adjustable smartphone adapter for light microscopes (compound, monocular, binocular, stereo). Cradles any smartphone (**58 mm – 95 mm wide**, bare or thick cased up to 13.5 mm thick) on bottom anti-drop ledges with self-wedging tapered jaws and locks the camera directly over the microscope's eyepiece (**Ø27.5 mm – Ø30.5 mm**).
 
-- **Universal Clamp:** Captive dovetail-T sliding jaw + ergonomic D-ring finger pull handle.
-- **2-Axis Cross-Slotted Alignment (X: ±16 mm, Y: ±21 mm):** Fits all smartphone camera locations (corner or center).
-- **Stepped Eyepiece Collar:** Ø30.0 mm ID split clamp with Ø21 mm internal eye-relief aperture stop.
-- **Zero Supports:** 100% 3D-printable with pre-oriented flat bed planes.
+- **Rock-Solid Phone Clamp:** Open-top camera zone, bottom anti-drop support ledges (safe on 45° tilted microscopes), self-wedging tapered side jaws, captive dovetail-T track, and dedicated M5 clamp lock knob.
+- **2-Axis Optical Alignment:** 46 mm horizontal travel (`-26` to `+20 mm`) + 50 mm vertical travel (`111–161 mm` above phone bottom) fits corner and center cameras on compact to Ultra/Pro Max phones.
+- **Open Optical Tunnel:** Ø30.5 mm ID split-clamp collar with 100% open Ø22 mm through-tunnel and exact 12 mm eye-relief stop.
+- **Flush Single-Size Hardware:** 3× `M5 × 20 mm` hex bolts + 3× `M5` hex nuts (all heads & bolt tips sit completely recessed — zero protrusion!).
+- **Zero Supports:** 100% 3D-printable with pre-oriented flat bed planes (print `thumb_knob.stl` 2×).
 - **Folder:** `microscope-adapter/`
 - **Files:** `adapter_model.py`, `phone_base.stl`, `clamp_jaw.stl`, `eyepiece_arm.stl`, `thumb_knob.stl`, `params.json`.
 
@@ -50,10 +52,11 @@ Run with 64-bit Python 3.14 (CadQuery 2.8):
 
 ```powershell
 # 1. Regenerate Smear Spreader
+cd smear-spreader
 py -3.14 spreader_model.py
 
 # 2. Regenerate Microscope Adapter
-cd microscope-adapter
+cd ..\microscope-adapter
 py -3.14 adapter_model.py
 ```
 
